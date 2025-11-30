@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: str-postgres
+    environment:
+      POSTGRES_DB: str_platform
+      POSTGRES_USER: str_user
+      POSTGRES_PASSWORD: str_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U str_user -d str_platform"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - str-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: str-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    networks:
+      - str-network
+
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: str-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: str_user
+      RABBITMQ_DEFAULT_PASS: str_password
+    ports:
+      - "5672:5672"   # AMQP
+      - "15672:15672" # Management UI (http://localhost:15672)
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - str-network
+
+volumes:
+  postgres_data:
+
+networks:
+  str-network:
+    driver: bridge

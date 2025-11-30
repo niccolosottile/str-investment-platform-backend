@@ -1,0 +1,16 @@
+spring:
+  config:
+    activate:
+      on-profile: dev
+  
+  jpa:
+    show-sql: true
+  
+  devtools:
+    restart:
+      enabled: true
+
+logging:
+  level:
+    com.str.platform: DEBUG
+    org.springframework.web: DEBUG

@@ -1,0 +1,29 @@
+name: Deploy to Railway
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Deploy to Railway
+        run: |
+          echo "Railway deployment triggered"
+          echo "Railway will detect Dockerfile and deploy automatically"
+          echo "Set up Railway GitHub integration for automatic deploys"
+        
+      # Uncomment when Railway token is configured
+      # - name: Install Railway CLI
+      #   run: npm install -g @railway/cli
+      # 
+      # - name: Deploy
+      #   env:
+      #     RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      #   run: railway up

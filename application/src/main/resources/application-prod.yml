@@ -1,0 +1,30 @@
+spring:
+  config:
+    activate:
+      on-profile: prod
+  
+  datasource:
+    url: ${DATABASE_URL}
+    hikari:
+      maximum-pool-size: 5
+  
+  jpa:
+    show-sql: false
+  
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+  
+  rabbitmq:
+    host: ${RABBITMQ_HOST}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER}
+    password: ${RABBITMQ_PASSWORD}
+
+logging:
+  level:
+    com.str.platform: INFO
+    org.springframework.web: WARN
+    org.hibernate.SQL: WARN
