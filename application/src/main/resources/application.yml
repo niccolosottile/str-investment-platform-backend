@@ -56,7 +56,7 @@ server:
     include-stacktrace: on_param
 
 mapbox:
-  token: ${MAPBOX_SECRET_TOKEN:}
+  access-token: ${MAPBOX_ACCESS_TOKEN:your_mapbox_token_here}
 
 resilience4j:
   ratelimiter:

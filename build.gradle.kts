@@ -20,6 +20,7 @@ subprojects {
     the<io.spring.gradle.dependencymanagement.dsl.DependencyManagementExtension>().apply {
         imports {
             mavenBom("org.springframework.boot:spring-boot-dependencies:3.2.0")
+            mavenBom("io.github.resilience4j:resilience4j-bom:2.1.0")
         }
     }
     
