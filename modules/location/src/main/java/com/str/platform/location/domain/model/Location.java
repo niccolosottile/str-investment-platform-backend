@@ -4,7 +4,6 @@ import com.str.platform.shared.domain.common.BaseEntity;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 /**
  * Location aggregate root.

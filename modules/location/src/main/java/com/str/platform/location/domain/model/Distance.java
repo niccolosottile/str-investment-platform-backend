@@ -1,6 +1,5 @@
 package com.str.platform.location.domain.model;
 
-import com.str.platform.shared.domain.common.ValueObject;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 

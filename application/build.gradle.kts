@@ -18,7 +18,7 @@ dependencies {
     // Database
     implementation("org.postgresql:postgresql")
     implementation("org.flywaydb:flyway-core")
-    implementation("org.flywaydb:flyway-database-postgresql")
+    runtimeOnly("org.flywaydb:flyway-database-postgresql:10.4.1")
     
     // Redis
     implementation("io.lettuce:lettuce-core")

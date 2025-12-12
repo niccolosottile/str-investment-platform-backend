@@ -17,19 +17,26 @@ subprojects {
     apply(plugin = "java")
     apply(plugin = "io.spring.dependency-management")
     
+    the<io.spring.gradle.dependencymanagement.dsl.DependencyManagementExtension>().apply {
+        imports {
+            mavenBom("org.springframework.boot:spring-boot-dependencies:3.2.0")
+        }
+    }
+    
     java {
-        sourceCompatibility = JavaVersion.VERSION_21
-        targetCompatibility = JavaVersion.VERSION_21
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
     
     dependencies {
         val implementation by configurations
+        val annotationProcessor by configurations
         val testImplementation by configurations
         val testRuntimeOnly by configurations
         
         // Lombok
-        implementation("org.projectlombok:lombok:1.18.30")
-        annotationProcessor("org.projectlombok:lombok:1.18.30")
+        compileOnly("org.projectlombok:lombok:1.18.34")
+        annotationProcessor("org.projectlombok:lombok:1.18.34")
         
         // Testing
         testImplementation("org.junit.jupiter:junit-jupiter:5.10.1")
@@ -45,5 +52,6 @@ subprojects {
     
     tasks.withType<JavaCompile> {
         options.encoding = "UTF-8"
+        options.compilerArgs.add("-parameters")
     }
 }
