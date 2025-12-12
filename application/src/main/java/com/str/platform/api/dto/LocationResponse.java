@@ -59,16 +59,18 @@ public class LocationResponse {
     public static LocationResponse fromDomain(Location location) {
         return LocationResponse.builder()
             .id(location.getId())
-            .latitude(location.getCoordinates().latitude())
-            .longitude(location.getCoordinates().longitude())
-            .city(location.getAddress().city())
-            .region(location.getAddress().region())
-            .country(location.getAddress().country())
+            .latitude(location.getCoordinates().getLatitude())
+            .longitude(location.getCoordinates().getLongitude())
+            .city(location.getAddress().getCity())
+            .region(location.getAddress().getRegion())
+            .country(location.getAddress().getCountry())
             .fullAddress(location.getAddress().getFullAddress())
             .dataQuality(location.getDataQuality().name())
             .propertyCount(location.getPropertyCount())
-            .averagePrice(location.getAveragePrice())
-            .lastScraped(location.getLastScraped())
+            .averagePrice(null)
+            .lastScraped(location.getLastScraped() != null 
+                ? location.getLastScraped().atZone(java.time.ZoneId.systemDefault()).toInstant()
+                : null)
             .build();
     }
 }

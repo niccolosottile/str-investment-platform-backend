@@ -34,10 +34,10 @@ public class DrivingTimeResponse {
      */
     public static DrivingTimeResponse fromDomain(Distance distance) {
         return DrivingTimeResponse.builder()
-            .distanceKm(distance.kilometers())
-            .drivingTimeMinutes(distance.drivingTime().map(d -> d.toMinutes()).orElse(null))
-            .drivingTimeHours(distance.drivingTime().map(d -> d.toMinutes() / 60.0).orElse(null))
-            .calculated(distance.drivingTime().isPresent())
+            .distanceKm(distance.getKilometers())
+            .drivingTimeMinutes(distance.getDrivingTimeMinutes() != null ? distance.getDrivingTimeMinutes().longValue() : null)
+            .drivingTimeHours(distance.getDrivingTimeMinutes() != null ? distance.getDrivingTimeMinutes() / 60.0 : null)
+            .calculated(distance.getDrivingTimeMinutes() != null)
             .build();
     }
 }

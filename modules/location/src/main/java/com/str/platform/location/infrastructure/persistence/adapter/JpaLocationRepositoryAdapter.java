@@ -58,17 +58,29 @@ public class JpaLocationRepositoryAdapter implements LocationRepository {
 
     @Override
     @Transactional(readOnly = true)
-    public Optional<Location> findByCoordinates(double latitude, double longitude) {
-        log.debug("Finding location by coordinates: {}, {}", latitude, longitude);
+    public Optional<Location> findByCoordinates(com.str.platform.location.domain.model.Coordinates coordinates) {
+        if (coordinates == null) {
+            throw new IllegalArgumentException("Coordinates cannot be null");
+        }
+        log.debug("Finding location by coordinates: {}, {}", coordinates.getLatitude(), coordinates.getLongitude());
         return jpaRepository.findByLatitudeAndLongitude(
-            BigDecimal.valueOf(latitude),
-            BigDecimal.valueOf(longitude)
+            BigDecimal.valueOf(coordinates.getLatitude()),
+            BigDecimal.valueOf(coordinates.getLongitude())
         ).map(mapper::toDomain);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<Location> findNearby(double latitude, double longitude, double radiusKm) {
+    public List<Location> findNearby(com.str.platform.location.domain.model.Coordinates center, double radiusKm) {
+        if (center == null) {
+            throw new IllegalArgumentException("Center coordinates cannot be null");
+        }
+        if (radiusKm <= 0) {
+            throw new IllegalArgumentException("Radius must be positive");
+        }
+        
+        double latitude = center.getLatitude();
+        double longitude = center.getLongitude();
         log.debug("Finding locations within {} km of {}, {}", radiusKm, latitude, longitude);
         
         // Simple bounding box calculation
@@ -89,20 +101,13 @@ public class JpaLocationRepositoryAdapter implements LocationRepository {
     }
 
     @Override
-    @Transactional(readOnly = true)
-    public List<Location> searchByQuery(String query) {
-        log.debug("Searching locations by query: {}", query);
-        return jpaRepository.searchByQuery(query)
-            .stream()
-            .map(mapper::toDomain)
-            .collect(Collectors.toList());
-    }
-
-    @Override
     @Transactional
-    public void delete(UUID id) {
-        log.debug("Deleting location: {}", id);
-        jpaRepository.deleteById(id);
+    public void delete(Location location) {
+        if (location == null || location.getId() == null) {
+            throw new IllegalArgumentException("Location or Location ID cannot be null");
+        }
+        log.debug("Deleting location: {}", location.getId());
+        jpaRepository.deleteById(location.getId());
     }
 
     @Override

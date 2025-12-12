@@ -71,7 +71,8 @@ public class LocationService {
     public List<Location> findNearby(double latitude, double longitude, double radiusKm) {
         log.info("Finding locations within {} km of {}, {}", radiusKm, latitude, longitude);
         
-        List<Location> nearby = locationRepository.findNearby(latitude, longitude, radiusKm);
+        Coordinates center = new Coordinates(latitude, longitude);
+        List<Location> nearby = locationRepository.findNearby(center, radiusKm);
         
         log.info("Found {} locations nearby", nearby.size());
         return nearby;
@@ -89,7 +90,7 @@ public class LocationService {
         log.debug("Getting location by ID: {}", id);
         
         return locationRepository.findById(id)
-            .orElseThrow(() -> new EntityNotFoundException("Location not found with ID: " + id));
+            .orElseThrow(() -> new EntityNotFoundException("Location", id));
     }
 
     /**
@@ -105,7 +106,8 @@ public class LocationService {
         log.debug("Finding or creating location at {}, {}", latitude, longitude);
 
         // Check if location already exists
-        Optional<Location> existing = locationRepository.findByCoordinates(latitude, longitude);
+        Coordinates coords = new Coordinates(latitude, longitude);
+        Optional<Location> existing = locationRepository.findByCoordinates(coords);
         if (existing.isPresent()) {
             log.debug("Location already exists in database");
             return existing.get();
@@ -118,9 +120,9 @@ public class LocationService {
         if (response == null || response.getFeatures() == null || response.getFeatures().isEmpty()) {
             log.warn("Could not reverse geocode coordinates {}, {}", latitude, longitude);
             // Create location with minimal info
-            Coordinates coords = new Coordinates(latitude, longitude);
-            Address address = new Address("Unknown", null, "Unknown");
-            Location location = new Location(null, coords, address);
+
+            Address address = new Address("Unknown", null, "Unknown", "Unknown");
+            Location location = new Location(coords, address);
             return locationRepository.save(location);
         }
 
@@ -133,16 +135,15 @@ public class LocationService {
      * 
      * @param locationId Location ID
      * @param propertyCount Number of properties found
-     * @param averagePrice Average property price
      * @return Updated location
      */
     @Transactional
-    public Location updateScrapedData(UUID locationId, int propertyCount, double averagePrice) {
-        log.info("Updating scraped data for location {}: {} properties, avg price {}", 
-            locationId, propertyCount, averagePrice);
+    public Location updateScrapingData(UUID locationId, int propertyCount) {
+        log.info("Updating scraped data for location {}: {} properties", 
+            locationId, propertyCount);
 
         Location location = getById(locationId);
-        location.updateScrapedData(propertyCount, averagePrice);
+        location.updateScrapingData(propertyCount, java.time.LocalDateTime.now());
         
         return locationRepository.save(location);
     }
@@ -168,9 +169,9 @@ public class LocationService {
         log.info("Deleting location: {}", id);
         
         // Verify location exists
-        getById(id);
+        Location location = getById(id);
         
-        locationRepository.delete(id);
+        locationRepository.delete(location);
     }
 
     /**
@@ -185,14 +186,12 @@ public class LocationService {
         Address address = new Address(
             feature.getCity() != null ? feature.getCity() : feature.getText(),
             feature.getRegion(),
-            feature.getCountry() != null ? feature.getCountry() : "Unknown"
+            feature.getCountry() != null ? feature.getCountry() : "Unknown",
+            feature.getPlaceName()
         );
 
         // Check if location already exists by coordinates
-        Optional<Location> existing = locationRepository.findByCoordinates(
-            coordinates.latitude(),
-            coordinates.longitude()
-        );
+        Optional<Location> existing = locationRepository.findByCoordinates(coordinates);
 
         if (existing.isPresent()) {
             log.debug("Location already exists, returning existing");
@@ -200,7 +199,7 @@ public class LocationService {
         }
 
         // Create and save new location
-        Location location = new Location(null, coordinates, address);
+        Location location = new Location(coordinates, address);
         return locationRepository.save(location);
     }
 }

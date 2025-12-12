@@ -31,20 +31,30 @@ public class LocationEntityMapper {
         Address address = new Address(
             entity.getCity(),
             entity.getRegion(),
-            entity.getCountry()
+            entity.getCountry(),
+            entity.getFullAddress()
         );
 
-        Location location = new Location(
-            entity.getId(),
-            coordinates,
-            address
-        );
+        Location location = new Location(coordinates, address);
+        
+        // Set ID using reflection since BaseEntity doesn't expose setter
+        try {
+            java.lang.reflect.Field idField = com.str.platform.shared.domain.common.BaseEntity.class.getDeclaredField("id");
+            idField.setAccessible(true);
+            idField.set(location, entity.getId());
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to set location ID", e);
+        }
 
-        // Set additional metadata
-        if (entity.getLastScraped() != null) {
-            location.updateScrapedData(
-                entity.getPropertyCount() != null ? entity.getPropertyCount() : 0,
-                entity.getAveragePrice() != null ? entity.getAveragePrice().doubleValue() : 0.0
+        // Set additional metadata - convert Instant to LocalDateTime
+        if (entity.getLastScraped() != null && entity.getPropertyCount() != null) {
+            java.time.LocalDateTime lastScraped = java.time.LocalDateTime.ofInstant(
+                entity.getLastScraped(), 
+                java.time.ZoneId.systemDefault()
+            );
+            location.updateScrapingData(
+                entity.getPropertyCount(),
+                lastScraped
             );
         }
 
@@ -61,18 +71,18 @@ public class LocationEntityMapper {
 
         return LocationEntity.builder()
             .id(domain.getId())
-            .latitude(BigDecimal.valueOf(domain.getCoordinates().latitude()))
-            .longitude(BigDecimal.valueOf(domain.getCoordinates().longitude()))
-            .city(domain.getAddress().city())
-            .region(domain.getAddress().region())
-            .country(domain.getAddress().country())
+            .latitude(BigDecimal.valueOf(domain.getCoordinates().getLatitude()))
+            .longitude(BigDecimal.valueOf(domain.getCoordinates().getLongitude()))
+            .city(domain.getAddress().getCity())
+            .region(domain.getAddress().getRegion())
+            .country(domain.getAddress().getCountry())
             .fullAddress(domain.getAddress().getFullAddress())
             .dataQuality(mapDataQuality(domain.getDataQuality()))
-            .lastScraped(domain.getLastScraped())
-            .propertyCount(domain.getPropertyCount())
-            .averagePrice(domain.getAveragePrice() != null 
-                ? BigDecimal.valueOf(domain.getAveragePrice()) 
+            .lastScraped(domain.getLastScraped() != null 
+                ? domain.getLastScraped().atZone(java.time.ZoneId.systemDefault()).toInstant()
                 : null)
+            .propertyCount(domain.getPropertyCount())
+            .averagePrice(null)
             .build();
     }
 
@@ -84,18 +94,18 @@ public class LocationEntityMapper {
             return;
         }
 
-        entity.setLatitude(BigDecimal.valueOf(domain.getCoordinates().latitude()));
-        entity.setLongitude(BigDecimal.valueOf(domain.getCoordinates().longitude()));
-        entity.setCity(domain.getAddress().city());
-        entity.setRegion(domain.getAddress().region());
-        entity.setCountry(domain.getAddress().country());
+        entity.setLatitude(BigDecimal.valueOf(domain.getCoordinates().getLatitude()));
+        entity.setLongitude(BigDecimal.valueOf(domain.getCoordinates().getLongitude()));
+        entity.setCity(domain.getAddress().getCity());
+        entity.setRegion(domain.getAddress().getRegion());
+        entity.setCountry(domain.getAddress().getCountry());
         entity.setFullAddress(domain.getAddress().getFullAddress());
         entity.setDataQuality(mapDataQuality(domain.getDataQuality()));
-        entity.setLastScraped(domain.getLastScraped());
-        entity.setPropertyCount(domain.getPropertyCount());
-        entity.setAveragePrice(domain.getAveragePrice() != null 
-            ? BigDecimal.valueOf(domain.getAveragePrice()) 
+        entity.setLastScraped(domain.getLastScraped() != null
+            ? domain.getLastScraped().atZone(java.time.ZoneId.systemDefault()).toInstant()
             : null);
+        entity.setPropertyCount(domain.getPropertyCount());
+        entity.setAveragePrice(null);
     }
 
     private LocationEntity.DataQuality mapDataQuality(Location.DataQuality domainQuality) {

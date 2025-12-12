@@ -44,7 +44,6 @@ public class Resilience4jConfig {
         RetryConfig config = RetryConfig.custom()
             .maxAttempts(3)
             .waitDuration(Duration.ofMillis(500))
-            .exponentialBackoffMultiplier(2.0)
             .retryExceptions(
                 org.springframework.web.reactive.function.client.WebClientRequestException.class,
                 java.util.concurrent.TimeoutException.class

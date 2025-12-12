@@ -1,5 +1,6 @@
 package com.str.platform.location.application.service;
 
+import com.str.platform.location.domain.model.Coordinates;
 import com.str.platform.location.domain.model.Distance;
 import com.str.platform.location.infrastructure.external.mapbox.MapboxClient;
 import com.str.platform.location.infrastructure.external.mapbox.dto.DirectionsResponse;
@@ -8,7 +9,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
-import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -27,6 +27,7 @@ import java.util.stream.Collectors;
 public class DrivingTimeService {
 
     private final MapboxClient mapboxClient;
+    
     private final ExecutorService virtualThreadExecutor = Executors.newVirtualThreadPerTaskExecutor();
 
     /**
@@ -55,7 +56,11 @@ public class DrivingTimeService {
 
             if (response == null || response.getPrimaryRoute() == null) {
                 log.warn("No route found between coordinates");
-                return Distance.fromHaversine(originLat, originLng, destLat, destLng);
+                // Calculate straight line distance using Haversine formula
+                Coordinates origin = new Coordinates(originLat, originLng);
+                Coordinates dest = new Coordinates(destLat, destLng);
+                double straightLineKm = origin.distanceTo(dest);
+                return Distance.fromStraightLine(straightLineKm);
             }
 
             DirectionsResponse.Route route = response.getPrimaryRoute();
@@ -64,11 +69,15 @@ public class DrivingTimeService {
 
             log.debug("Route found: {} km, {} minutes", distanceKm, durationMinutes);
 
-            return new Distance(distanceKm, Duration.ofMinutes((long) durationMinutes));
+            return Distance.fromApi(distanceKm, (int) durationMinutes);
 
         } catch (Exception e) {
             log.error("Error calculating driving time, falling back to Haversine", e);
-            return Distance.fromHaversine(originLat, originLng, destLat, destLng);
+            // Calculate straight line distance using Haversine formula
+            Coordinates origin = new Coordinates(originLat, originLng);
+            Coordinates dest = new Coordinates(destLat, destLng);
+            double straightLineKm = origin.distanceTo(dest);
+            return Distance.fromStraightLine(straightLineKm);
         }
     }
 
@@ -126,9 +135,8 @@ public class DrivingTimeService {
         double destLat, double destLng
     ) {
         Distance distance = calculateDrivingTime(originLat, originLng, destLat, destLng);
-        return distance.drivingTime()
-            .map(duration -> (double) duration.toMinutes())
-            .orElse(null);
+        Integer minutes = distance.getDrivingTimeMinutes();
+        return minutes != null ? minutes.doubleValue() : null;
     }
 
     /**
@@ -142,9 +150,8 @@ public class DrivingTimeService {
     ) {
         try {
             Distance distance = calculateDrivingTime(originLat, originLng, destLat, destLng);
-            return distance.drivingTime()
-                .map(duration -> duration.toMinutes() <= maxMinutes)
-                .orElse(false);
+            Integer minutes = distance.getDrivingTimeMinutes();
+            return minutes != null && minutes <= maxMinutes;
         } catch (Exception e) {
             log.error("Error checking driving time threshold", e);
             return false;

@@ -1,10 +1,12 @@
 package com.str.platform.scraping.infrastructure.persistence.mapper;
 
+import com.str.platform.location.domain.model.Coordinates;
 import com.str.platform.scraping.domain.model.ScrapingJob;
 import com.str.platform.scraping.infrastructure.persistence.entity.ScrapingJobEntity;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.time.ZoneId;
 
 /**
  * Mapper for converting between ScrapingJob domain model and ScrapingJobEntity.
@@ -20,22 +22,36 @@ public class ScrapingJobEntityMapper {
             return null;
         }
 
-        ScrapingJob job = new ScrapingJob(
-            entity.getId(),
+        Coordinates location = new Coordinates(
             entity.getLatitude().doubleValue(),
-            entity.getLongitude().doubleValue(),
+            entity.getLongitude().doubleValue()
+        );
+
+        ScrapingJob job = new ScrapingJob(
+            location,
             mapPlatformToDomain(entity.getPlatform()),
             entity.getRadiusKm()
         );
 
-        // Set status and execution details
-        job.updateStatus(
-            mapStatusToDomain(entity.getStatus()),
-            entity.getStartedAt(),
-            entity.getCompletedAt(),
-            entity.getPropertiesFound(),
-            entity.getErrorMessage()
-        );
+        // Set ID using reflection since BaseEntity doesn't expose setter
+        try {
+            java.lang.reflect.Field idField = com.str.platform.shared.domain.common.BaseEntity.class.getDeclaredField("id");
+            idField.setAccessible(true);
+            idField.set(job, entity.getId());
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to set scraping job ID", e);
+        }
+
+        // Handle status transitions based on entity state
+        if (entity.getStatus() == ScrapingJobEntity.JobStatus.IN_PROGRESS) {
+            job.start();
+        } else if (entity.getStatus() == ScrapingJobEntity.JobStatus.COMPLETED && entity.getPropertiesFound() != null) {
+            job.start();
+            job.complete(entity.getPropertiesFound());
+        } else if (entity.getStatus() == ScrapingJobEntity.JobStatus.FAILED) {
+            job.start();
+            job.fail(entity.getErrorMessage());
+        }
 
         return job;
     }
@@ -50,14 +66,14 @@ public class ScrapingJobEntityMapper {
 
         return ScrapingJobEntity.builder()
             .id(domain.getId())
-            .latitude(BigDecimal.valueOf(domain.getLatitude()))
-            .longitude(BigDecimal.valueOf(domain.getLongitude()))
+            .latitude(BigDecimal.valueOf(domain.getLocation().getLatitude()))
+            .longitude(BigDecimal.valueOf(domain.getLocation().getLongitude()))
             .platform(mapPlatformToEntity(domain.getPlatform()))
             .radiusKm(domain.getRadiusKm())
             .status(mapStatusToEntity(domain.getStatus()))
             .propertiesFound(domain.getPropertiesFound())
-            .startedAt(domain.getStartedAt())
-            .completedAt(domain.getCompletedAt())
+            .startedAt(domain.getStartedAt() != null ? domain.getStartedAt().atZone(ZoneId.systemDefault()).toInstant() : null)
+            .completedAt(domain.getCompletedAt() != null ? domain.getCompletedAt().atZone(ZoneId.systemDefault()).toInstant() : null)
             .errorMessage(domain.getErrorMessage())
             .build();
     }
@@ -72,15 +88,15 @@ public class ScrapingJobEntityMapper {
 
         entity.setStatus(mapStatusToEntity(domain.getStatus()));
         entity.setPropertiesFound(domain.getPropertiesFound());
-        entity.setStartedAt(domain.getStartedAt());
-        entity.setCompletedAt(domain.getCompletedAt());
+        entity.setStartedAt(domain.getStartedAt() != null ? domain.getStartedAt().atZone(ZoneId.systemDefault()).toInstant() : null);
+        entity.setCompletedAt(domain.getCompletedAt() != null ? domain.getCompletedAt().atZone(ZoneId.systemDefault()).toInstant() : null);
         entity.setErrorMessage(domain.getErrorMessage());
     }
 
     private ScrapingJob.Platform mapPlatformToDomain(ScrapingJobEntity.Platform entityPlatform) {
         return switch (entityPlatform) {
             case AIRBNB -> ScrapingJob.Platform.AIRBNB;
-            case BOOKING_COM -> ScrapingJob.Platform.BOOKING_COM;
+            case BOOKING_COM -> ScrapingJob.Platform.BOOKING;
             case VRBO -> ScrapingJob.Platform.VRBO;
         };
     }
@@ -88,17 +104,8 @@ public class ScrapingJobEntityMapper {
     private ScrapingJobEntity.Platform mapPlatformToEntity(ScrapingJob.Platform domainPlatform) {
         return switch (domainPlatform) {
             case AIRBNB -> ScrapingJobEntity.Platform.AIRBNB;
-            case BOOKING_COM -> ScrapingJobEntity.Platform.BOOKING_COM;
+            case BOOKING -> ScrapingJobEntity.Platform.BOOKING_COM;
             case VRBO -> ScrapingJobEntity.Platform.VRBO;
-        };
-    }
-
-    private ScrapingJob.JobStatus mapStatusToDomain(ScrapingJobEntity.JobStatus entityStatus) {
-        return switch (entityStatus) {
-            case PENDING -> ScrapingJob.JobStatus.PENDING;
-            case IN_PROGRESS -> ScrapingJob.JobStatus.IN_PROGRESS;
-            case COMPLETED -> ScrapingJob.JobStatus.COMPLETED;
-            case FAILED -> ScrapingJob.JobStatus.FAILED;
         };
     }
 

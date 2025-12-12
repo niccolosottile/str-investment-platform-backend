@@ -1,6 +1,8 @@
 package com.str.platform.scraping.infrastructure.persistence.mapper;
 
+import com.str.platform.location.domain.model.Coordinates;
 import com.str.platform.scraping.domain.model.Property;
+import com.str.platform.scraping.domain.model.ScrapingJob;
 import com.str.platform.scraping.infrastructure.persistence.entity.PropertyEntity;
 import org.springframework.stereotype.Component;
 
@@ -20,27 +22,30 @@ public class PropertyEntityMapper {
             return null;
         }
 
-        return new Property(
-            entity.getId(),
+        Coordinates coordinates = new Coordinates(
+            entity.getLatitude().doubleValue(),
+            entity.getLongitude().doubleValue()
+        );
+
+        Property property = new Property(
             entity.getLocationId(),
             mapPlatformToDomain(entity.getPlatform()),
             entity.getPlatformPropertyId(),
-            entity.getLatitude().doubleValue(),
-            entity.getLongitude().doubleValue(),
-            entity.getTitle(),
-            entity.getPropertyType(),
-            entity.getPrice().doubleValue(),
-            entity.getCurrency(),
-            entity.getBedrooms(),
-            entity.getBathrooms(),
-            entity.getGuests(),
-            entity.getRating() != null ? entity.getRating().doubleValue() : null,
-            entity.getReviewCount(),
-            entity.getIsSuperhost(),
-            entity.getInstantBook(),
-            entity.getPropertyUrl(),
-            entity.getImageUrl()
+            coordinates,
+            entity.getPrice(),
+            Property.PropertyType.valueOf(entity.getPropertyType())
         );
+
+        // Set ID using reflection since BaseEntity doesn't expose setter
+        try {
+            java.lang.reflect.Field idField = com.str.platform.shared.domain.common.BaseEntity.class.getDeclaredField("id");
+            idField.setAccessible(true);
+            idField.set(property, entity.getId());
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to set property ID", e);
+        }
+
+        return property;
     }
 
     /**
@@ -55,37 +60,37 @@ public class PropertyEntityMapper {
             .id(domain.getId())
             .locationId(domain.getLocationId())
             .platform(mapPlatformToEntity(domain.getPlatform()))
-            .platformPropertyId(domain.getPlatformPropertyId())
-            .latitude(BigDecimal.valueOf(domain.getLatitude()))
-            .longitude(BigDecimal.valueOf(domain.getLongitude()))
-            .title(domain.getTitle())
-            .propertyType(domain.getPropertyType())
-            .price(BigDecimal.valueOf(domain.getPrice()))
+            .platformPropertyId(domain.getPlatformId())
+            .latitude(BigDecimal.valueOf(domain.getCoordinates().getLatitude()))
+            .longitude(BigDecimal.valueOf(domain.getCoordinates().getLongitude()))
+            .title(null) // Not stored in domain model
+            .propertyType(domain.getPropertyType().name())
+            .price(domain.getPricePerNight())
             .currency(domain.getCurrency())
             .bedrooms(domain.getBedrooms())
-            .bathrooms(domain.getBathrooms())
-            .guests(domain.getGuests())
-            .rating(domain.getRating() != null ? BigDecimal.valueOf(domain.getRating()) : null)
+            .bathrooms((int) domain.getBathrooms())
+            .guests(domain.getMaxGuests())
+            .rating(domain.getRating() > 0 ? BigDecimal.valueOf(domain.getRating()) : null)
             .reviewCount(domain.getReviewCount())
-            .isSuperhost(domain.getIsSuperhost())
-            .instantBook(domain.getInstantBook())
-            .propertyUrl(domain.getPropertyUrl())
-            .imageUrl(domain.getImageUrl())
+            .isSuperhost(null) // Not stored in domain model
+            .instantBook(null) // Not stored in domain model
+            .propertyUrl(null) // Not stored in domain model
+            .imageUrl(null) // Not stored in domain model
             .build();
     }
 
-    private Property.Platform mapPlatformToDomain(PropertyEntity.Platform entityPlatform) {
+    private ScrapingJob.Platform mapPlatformToDomain(PropertyEntity.Platform entityPlatform) {
         return switch (entityPlatform) {
-            case AIRBNB -> Property.Platform.AIRBNB;
-            case BOOKING_COM -> Property.Platform.BOOKING_COM;
-            case VRBO -> Property.Platform.VRBO;
+            case AIRBNB -> ScrapingJob.Platform.AIRBNB;
+            case BOOKING_COM -> ScrapingJob.Platform.BOOKING;
+            case VRBO -> ScrapingJob.Platform.VRBO;
         };
     }
 
-    private PropertyEntity.Platform mapPlatformToEntity(Property.Platform domainPlatform) {
+    private PropertyEntity.Platform mapPlatformToEntity(ScrapingJob.Platform domainPlatform) {
         return switch (domainPlatform) {
             case AIRBNB -> PropertyEntity.Platform.AIRBNB;
-            case BOOKING_COM -> PropertyEntity.Platform.BOOKING_COM;
+            case BOOKING -> PropertyEntity.Platform.BOOKING_COM;
             case VRBO -> PropertyEntity.Platform.VRBO;
         };
     }
