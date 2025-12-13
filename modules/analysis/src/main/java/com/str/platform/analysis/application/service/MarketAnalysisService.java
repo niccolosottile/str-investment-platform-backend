@@ -28,10 +28,6 @@ public class MarketAnalysisService {
     private static final double LOW_DENSITY_THRESHOLD = 10.0;
     private static final double HIGH_DENSITY_THRESHOLD = 30.0;
     
-    // Growth trend thresholds (% difference from median)
-    private static final double DECLINING_THRESHOLD = -10.0;
-    private static final double STABLE_THRESHOLD = 10.0;
-    
     /**
      * Analyze market conditions based on available properties
      */

@@ -1,4 +1,4 @@
-package com.str.platform.config;
+package com.str.platform.application.config;
 
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;

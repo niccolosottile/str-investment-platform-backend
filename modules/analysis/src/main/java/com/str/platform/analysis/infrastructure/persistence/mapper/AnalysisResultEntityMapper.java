@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.util.HashMap;
+import java.util.UUID;
 
 /**
  * Mapper for converting between AnalysisResult domain model and AnalysisResultEntity.
@@ -69,15 +70,17 @@ public class AnalysisResultEntityMapper {
 
     /**
      * Convert domain model to JPA entity
+     * @param domain The domain model to convert
+     * @param locationId The UUID of the location entity (must be found/created before calling this method)
      */
-    public AnalysisResultEntity toEntity(AnalysisResult domain) {
+    public AnalysisResultEntity toEntity(AnalysisResult domain, UUID locationId) {
         if (domain == null) {
             return null;
         }
 
         return AnalysisResultEntity.builder()
             .id(domain.getId())
-            .locationId(null) // TODO: Need to store location UUID, not Coordinates
+            .locationId(locationId)
             .investmentType(mapInvestmentTypeToEntity(domain.getConfiguration().getInvestmentType()))
             .budget(domain.getConfiguration().getBudget().getAmount())
             .currency(domain.getConfiguration().getBudget().getCurrency().name())

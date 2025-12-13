@@ -3,6 +3,8 @@ package com.str.platform.analysis.application.service;
 import com.str.platform.analysis.domain.model.*;
 import com.str.platform.analysis.infrastructure.persistence.mapper.AnalysisResultEntityMapper;
 import com.str.platform.analysis.infrastructure.persistence.repository.JpaAnalysisResultRepository;
+import com.str.platform.location.application.service.LocationService;
+import com.str.platform.location.domain.model.Location;
 import com.str.platform.scraping.domain.model.Property;
 import com.str.platform.scraping.infrastructure.persistence.repository.JpaPropertyRepository;
 import com.str.platform.shared.domain.exception.EntityNotFoundException;
@@ -30,6 +32,7 @@ public class AnalysisOrchestrationService {
     private final JpaPropertyRepository propertyRepository;
     private final JpaAnalysisResultRepository analysisResultRepository;
     private final AnalysisResultEntityMapper analysisResultMapper;
+    private final LocationService locationService;
     
     private static final double SEARCH_RADIUS_KM = 5.0;
     
@@ -76,8 +79,14 @@ public class AnalysisOrchestrationService {
             dataQuality
         );
         
+        // Find or create Location for this analysis
+        Location location = locationService.findOrCreateByCoordinates(
+            config.getLocation().getLatitude(),
+            config.getLocation().getLongitude()
+        );
+        
         // Persist to database
-        var entity = analysisResultMapper.toEntity(result);
+        var entity = analysisResultMapper.toEntity(result, location.getId());
         var savedEntity = analysisResultRepository.save(entity);
         
         log.info("Analysis complete: ROI={}%, Payback={} months, DataQuality={}",
