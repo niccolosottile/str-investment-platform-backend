@@ -35,6 +35,12 @@ dependencies {
     implementation("io.github.resilience4j:resilience4j-retry:2.2.0")
     implementation("io.github.resilience4j:resilience4j-circuitbreaker:2.2.0")
     
+    // AOP for metrics
+    implementation("org.springframework.boot:spring-boot-starter-aop")
+    
+    // Structured Logging
+    implementation("net.logstash.logback:logstash-logback-encoder:7.4")
+    
     // MapStruct for DTO mapping
     implementation("org.mapstruct:mapstruct:1.5.5.Final")
     annotationProcessor("org.mapstruct:mapstruct-processor:1.5.5.Final")
