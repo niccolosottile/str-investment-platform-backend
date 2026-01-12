@@ -1,7 +1,8 @@
 package com.str.platform.analysis.application.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.*;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 
 import java.math.BigDecimal;
 
@@ -10,19 +11,7 @@ import java.math.BigDecimal;
  */
 @Schema(description = "Investment analysis request")
 public record AnalysisRequest(
-    
-    @NotNull(message = "Latitude is required")
-    @DecimalMin(value = "-90.0", message = "Latitude must be >= -90")
-    @DecimalMax(value = "90.0", message = "Latitude must be <= 90")
-    @Schema(description = "Latitude coordinate", example = "48.8566")
-    Double latitude,
-    
-    @NotNull(message = "Longitude is required")
-    @DecimalMin(value = "-180.0", message = "Longitude must be >= -180")
-    @DecimalMax(value = "180.0", message = "Longitude must be <= 180")
-    @Schema(description = "Longitude coordinate", example = "2.3522")
-    Double longitude,
-    
+
     @NotNull(message = "Investment type is required")
     @Schema(description = "Type of investment", example = "BUY", 
             allowableValues = {"BUY", "RENT"})

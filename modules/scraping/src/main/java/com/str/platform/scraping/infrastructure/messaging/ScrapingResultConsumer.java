@@ -36,7 +36,7 @@ public class ScrapingResultConsumer {
     private final CacheManager cacheManager;
     private final LocationService locationService;
     
-    private static final String SCRAPING_RESULT_QUEUE = "str.scraping.result.queue";
+    public static final String SCRAPING_RESULT_QUEUE = "str.scraping.result.queue";
     
     /**
      * Handle scraping job completed event from Python worker.
@@ -59,12 +59,11 @@ public class ScrapingResultConsumer {
             jobEntity.setPropertiesFound(event.getPropertiesFound());
             scrapingJobRepository.save(jobEntity);
             
-            // Find or create Location for this scraping job
-            Location location = locationService.findOrCreateByCoordinates(
-                jobEntity.getLatitude().doubleValue(),
-                jobEntity.getLongitude().doubleValue()
-            );
-            UUID locationId = location.getId();
+            // Location-first: jobs must always carry a Location ID
+            UUID locationId = jobEntity.getLocationId();
+            if (locationId == null) {
+                throw new IllegalStateException("Scraping job missing locationId: " + jobEntity.getId());
+            }
             
             // Save or update properties
             int savedCount = 0;

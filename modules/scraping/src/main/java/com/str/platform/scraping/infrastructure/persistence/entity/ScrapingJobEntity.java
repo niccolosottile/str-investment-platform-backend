@@ -31,6 +31,9 @@ public class ScrapingJobEntity {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @Column(name = "location_id", nullable = false)
+    private UUID locationId;
+
     @Column(nullable = false, precision = 10, scale = 8)
     private BigDecimal latitude;
 

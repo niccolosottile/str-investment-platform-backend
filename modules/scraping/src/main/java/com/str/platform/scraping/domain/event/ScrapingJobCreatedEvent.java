@@ -17,6 +17,7 @@ import java.util.UUID;
 public class ScrapingJobCreatedEvent implements DomainEvent {
     
     private final UUID jobId;
+    private final UUID locationId;
     private final double latitude;
     private final double longitude;
     private final ScrapingJob.Platform platform;

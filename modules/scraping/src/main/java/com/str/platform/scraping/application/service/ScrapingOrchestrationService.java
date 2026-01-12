@@ -1,6 +1,8 @@
 package com.str.platform.scraping.application.service;
 
 import com.str.platform.location.domain.model.Coordinates;
+import com.str.platform.location.application.service.LocationService;
+import com.str.platform.location.domain.model.Location;
 import com.str.platform.scraping.domain.event.ScrapingJobCreatedEvent;
 import com.str.platform.scraping.domain.model.ScrapingJob;
 import com.str.platform.scraping.infrastructure.messaging.ScrapingJobPublisher;
@@ -33,6 +35,7 @@ public class ScrapingOrchestrationService {
     private final JpaScrapingJobRepository scrapingJobRepository;
     private final ScrapingJobEntityMapper scrapingJobMapper;
     private final ScrapingJobPublisher jobPublisher;
+    private final LocationService locationService;
     
     private static final int DEFAULT_RADIUS_KM = 5;
     
@@ -46,50 +49,69 @@ public class ScrapingOrchestrationService {
             ScrapingJob.Platform platform,
             int radiusKm
     ) {
-        log.info("Creating scraping job: platform={}, coords=({}, {}), radius={}km",
-            platform, coordinates.getLatitude(), coordinates.getLongitude(), radiusKm);
-        
+        // Location-first: resolve (or create) a Location, then run a location-based job.
+        var location = locationService.findOrCreateByCoordinates(
+            coordinates.getLatitude(),
+            coordinates.getLongitude()
+        );
+        return createScrapingJobForLocation(location.getId(), platform, radiusKm);
+    }
+
+    /**
+     * Create and publish a new scraping job tied to an existing Location.
+     * The job retains the Location ID for consistent result ingestion.
+     */
+    @Transactional
+    public ScrapingJob createScrapingJobForLocation(
+            UUID locationId,
+            ScrapingJob.Platform platform,
+            int radiusKm
+    ) {
+        Location location = locationService.getById(locationId);
+        Coordinates coordinates = location.getCoordinates();
+
+        log.info("Creating scraping job for locationId={}: platform={}, coords=({}, {}), radius={}km",
+            locationId, platform, coordinates.getLatitude(), coordinates.getLongitude(), radiusKm);
+
         // Create domain object
         ScrapingJob job = new ScrapingJob(coordinates, platform, radiusKm);
-        
-        // Convert to entity and save
+
+        // Convert to entity, set locationId, and save
         ScrapingJobEntity entity = scrapingJobMapper.toEntity(job);
+        entity.setLocationId(locationId);
         entity = scrapingJobRepository.save(entity);
-        
-        // Convert back to domain with ID
+
         ScrapingJob savedJob = scrapingJobMapper.toDomain(entity);
-        
+
         // Publish event to RabbitMQ for Python scraper
         try {
             ScrapingJobCreatedEvent event = new ScrapingJobCreatedEvent(
                 savedJob.getId(),
+                locationId,
                 coordinates.getLatitude(),
                 coordinates.getLongitude(),
                 platform,
                 radiusKm,
                 LocalDateTime.now()
             );
-            
+
             jobPublisher.publishJobCreated(event);
-            
-            // Mark job as in progress
+
+            // Mark job as in progress (update only mutable fields to preserve locationId)
             savedJob.start();
-            entity = scrapingJobMapper.toEntity(savedJob);
+            scrapingJobMapper.updateEntity(savedJob, entity);
             scrapingJobRepository.save(entity);
-            
+
             log.info("Successfully created and published scraping job: {}", savedJob.getId());
-            
         } catch (Exception e) {
             log.error("Failed to publish scraping job: {}", savedJob.getId(), e);
-            
-            // Mark job as failed
+
             savedJob.fail("Failed to publish job to queue: " + e.getMessage());
-            entity = scrapingJobMapper.toEntity(savedJob);
+            scrapingJobMapper.updateEntity(savedJob, entity);
             scrapingJobRepository.save(entity);
-            
             throw new RuntimeException("Failed to create scraping job", e);
         }
-        
+
         return savedJob;
     }
     
@@ -126,6 +148,29 @@ public class ScrapingOrchestrationService {
         }
         
         log.info("Created {} scraping jobs", jobs.size());
+        return jobs;
+    }
+
+    /**
+     * Create scraping jobs for all platforms for an existing Location.
+     */
+    @Transactional
+    public List<ScrapingJob> createScrapingJobsForAllPlatformsForLocation(
+            UUID locationId,
+            int radiusKm
+    ) {
+        log.info("Creating scraping jobs for all platforms for locationId={}, radius={}km", locationId, radiusKm);
+
+        List<ScrapingJob> jobs = new ArrayList<>();
+        for (ScrapingJob.Platform platform : ScrapingJob.Platform.values()) {
+            try {
+                jobs.add(createScrapingJobForLocation(locationId, platform, radiusKm));
+            } catch (Exception e) {
+                log.error("Failed to create scraping job for locationId={} platform={}", locationId, platform, e);
+            }
+        }
+
+        log.info("Created {} scraping jobs for locationId={}", jobs.size(), locationId);
         return jobs;
     }
     
@@ -225,7 +270,7 @@ public class ScrapingOrchestrationService {
         entity.setPropertiesFound(null);
         entity = scrapingJobRepository.save(entity);
         
-        // Convert to domain and create new job
+        // Convert to domain and publish retry
         ScrapingJob domain = scrapingJobMapper.toDomain(entity);
         Coordinates coords = domain.getLocation();
         
@@ -233,6 +278,7 @@ public class ScrapingOrchestrationService {
         try {
             ScrapingJobCreatedEvent event = new ScrapingJobCreatedEvent(
                 domain.getId(),
+                entity.getLocationId(),
                 coords.getLatitude(),
                 coords.getLongitude(),
                 domain.getPlatform(),
@@ -244,7 +290,7 @@ public class ScrapingOrchestrationService {
             
             // Mark as in progress
             domain.start();
-            entity = scrapingJobMapper.toEntity(domain);
+            scrapingJobMapper.updateEntity(domain, entity);
             scrapingJobRepository.save(entity);
             
             log.info("Successfully retried scraping job: {}", jobId);
@@ -252,7 +298,7 @@ public class ScrapingOrchestrationService {
         } catch (Exception e) {
             log.error("Failed to retry scraping job: {}", jobId, e);
             domain.fail("Failed to publish retry: " + e.getMessage());
-            entity = scrapingJobMapper.toEntity(domain);
+            scrapingJobMapper.updateEntity(domain, entity);
             scrapingJobRepository.save(entity);
             throw new RuntimeException("Failed to retry scraping job", e);
         }

@@ -63,6 +63,30 @@ public class ScrapingController {
         
         return ResponseEntity.ok(toResponse(job));
     }
+
+    /**
+     * Create a new scraping job for an existing Location.
+     * This preserves the selected location semantics across the pipeline.
+     */
+    @PostMapping("/location/{locationId}")
+    @Operation(
+        summary = "Create scraping job for location",
+        description = "Creates a new scraping job for an existing Location ID and platform."
+    )
+    @ApiResponse(responseCode = "200", description = "Job created successfully")
+    @ApiResponse(responseCode = "400", description = "Invalid request")
+    @ApiResponse(responseCode = "404", description = "Location not found")
+    public ResponseEntity<ScrapingJobResponse> createScrapingJobForLocation(
+            @Parameter(description = "Location ID") @PathVariable UUID locationId,
+            @Valid @RequestBody ScrapingJobForLocationRequest request
+    ) {
+        log.info("Creating scraping job for locationId={}: platform={}", locationId, request.platform);
+
+        ScrapingJob.Platform platform = ScrapingJob.Platform.valueOf(request.platform.toUpperCase());
+        ScrapingJob job = orchestrationService.createScrapingJobForLocation(locationId, platform, request.radiusKm);
+
+        return ResponseEntity.ok(toResponse(job));
+    }
     
     /**
      * Create scraping jobs for all platforms
@@ -90,6 +114,34 @@ public class ScrapingController {
             .map(this::toResponse)
             .collect(Collectors.toList());
         
+        return ResponseEntity.ok(new BatchScrapingJobResponse(
+            responses.size(),
+            responses
+        ));
+    }
+
+    @PostMapping("/location/{locationId}/batch")
+    @Operation(
+        summary = "Create batch scraping jobs for location",
+        description = "Creates scraping jobs for all platforms (Airbnb, Booking, VRBO) for an existing Location ID."
+    )
+    @ApiResponse(responseCode = "200", description = "Jobs created successfully")
+    @ApiResponse(responseCode = "404", description = "Location not found")
+    public ResponseEntity<BatchScrapingJobResponse> createBatchScrapingJobsForLocation(
+            @Parameter(description = "Location ID") @PathVariable UUID locationId,
+            @Valid @RequestBody BatchScrapingJobForLocationRequest request
+    ) {
+        log.info("Creating batch scraping jobs for locationId={}", locationId);
+
+        List<ScrapingJob> jobs = orchestrationService.createScrapingJobsForAllPlatformsForLocation(
+            locationId,
+            request.radiusKm
+        );
+
+        List<ScrapingJobResponse> responses = jobs.stream()
+            .map(this::toResponse)
+            .collect(Collectors.toList());
+
         return ResponseEntity.ok(new BatchScrapingJobResponse(
             responses.size(),
             responses
@@ -236,6 +288,21 @@ public class ScrapingController {
         @Positive(message = "Radius must be positive")
         Integer radiusKm
     ) {}
+
+    /**
+     * Request DTO for creating a scraping job for an existing Location.
+     */
+    @Schema(description = "Request to create a scraping job for an existing location")
+    public record ScrapingJobForLocationRequest(
+        @Schema(description = "Platform to scrape", example = "AIRBNB", requiredMode = Schema.RequiredMode.REQUIRED)
+        @NotNull(message = "Platform is required")
+        String platform,
+
+        @Schema(description = "Search radius in kilometers", example = "5", requiredMode = Schema.RequiredMode.REQUIRED)
+        @NotNull(message = "Radius is required")
+        @Positive(message = "Radius must be positive")
+        Integer radiusKm
+    ) {}
     
     /**
      * Request DTO for creating batch scraping jobs
@@ -254,6 +321,14 @@ public class ScrapingController {
         @DecimalMax(value = "180.0", message = "Longitude must be <= 180")
         Double longitude,
         
+        @Schema(description = "Search radius in kilometers", example = "5", requiredMode = Schema.RequiredMode.REQUIRED)
+        @NotNull(message = "Radius is required")
+        @Positive(message = "Radius must be positive")
+        Integer radiusKm
+    ) {}
+
+    @Schema(description = "Request to create scraping jobs for all platforms for an existing location")
+    public record BatchScrapingJobForLocationRequest(
         @Schema(description = "Search radius in kilometers", example = "5", requiredMode = Schema.RequiredMode.REQUIRED)
         @NotNull(message = "Radius is required")
         @Positive(message = "Radius must be positive")

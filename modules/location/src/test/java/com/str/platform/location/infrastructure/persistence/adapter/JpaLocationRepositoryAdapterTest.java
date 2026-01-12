@@ -4,14 +4,20 @@ import com.str.platform.location.domain.model.Address;
 import com.str.platform.location.domain.model.Coordinates;
 import com.str.platform.location.domain.model.Location;
 
+import com.str.platform.location.infrastructure.persistence.entity.LocationEntity;
 import com.str.platform.location.infrastructure.persistence.mapper.LocationEntityMapper;
 import com.str.platform.location.infrastructure.persistence.repository.JpaLocationRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -29,10 +35,18 @@ import static org.assertj.core.api.Assertions.assertThat;
  * This spins up a real PostgreSQL database in Docker for testing.
  */
 @DataJpaTest
-@Testcontainers
+@Testcontainers(disabledWithoutDocker = true)
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+@ContextConfiguration(classes = JpaLocationRepositoryAdapterTest.TestApplication.class)
 @Import({JpaLocationRepositoryAdapter.class, LocationEntityMapper.class})
 class JpaLocationRepositoryAdapterTest {
+
+    @SpringBootConfiguration
+    @EnableAutoConfiguration
+    @EntityScan(basePackageClasses = LocationEntity.class)
+    @EnableJpaRepositories(basePackageClasses = JpaLocationRepository.class)
+    static class TestApplication {
+    }
 
     @Container
     @SuppressWarnings("resource") // TestContainers manages lifecycle

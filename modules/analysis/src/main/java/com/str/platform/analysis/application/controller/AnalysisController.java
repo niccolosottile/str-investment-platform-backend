@@ -4,7 +4,6 @@ import com.str.platform.analysis.application.dto.AnalysisRequest;
 import com.str.platform.analysis.application.dto.AnalysisResponse;
 import com.str.platform.analysis.application.service.AnalysisOrchestrationService;
 import com.str.platform.analysis.domain.model.*;
-import com.str.platform.location.domain.model.Coordinates;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -31,12 +30,12 @@ public class AnalysisController {
     private final AnalysisOrchestrationService analysisService;
     
     /**
-     * Perform investment analysis
+     * Perform investment analysis for an existing Location.
      */
-    @PostMapping
+    @PostMapping("/location/{locationId}")
     @Operation(
-        summary = "Perform investment analysis",
-        description = "Analyzes investment viability based on location, budget, and market conditions",
+        summary = "Perform investment analysis for a location",
+        description = "Analyzes investment viability for a selected Location ID.",
         responses = {
             @ApiResponse(
                 responseCode = "200",
@@ -44,54 +43,43 @@ public class AnalysisController {
                 content = @Content(schema = @Schema(implementation = AnalysisResponse.class))
             ),
             @ApiResponse(responseCode = "400", description = "Invalid request parameters"),
+            @ApiResponse(responseCode = "404", description = "Location not found"),
             @ApiResponse(responseCode = "422", description = "Business validation failed")
         }
     )
-    public ResponseEntity<AnalysisResponse> analyzeInvestment(
+    public ResponseEntity<AnalysisResponse> analyzeInvestmentForLocation(
+            @PathVariable UUID locationId,
             @Valid @RequestBody AnalysisRequest request
     ) {
-        log.info("Received analysis request for location: ({}, {}), type: {}, budget: {}",
-            request.latitude(), request.longitude(), 
-            request.investmentType(), request.budget());
-        
-        // Convert request to domain objects
-        Coordinates location = new Coordinates(request.latitude(), request.longitude());
-        
-        InvestmentConfiguration.InvestmentType investmentType = 
+        log.info("Received analysis request for locationId={}, type: {}, budget: {}",
+            locationId, request.investmentType(), request.budget());
+
+        InvestmentConfiguration.InvestmentType investmentType =
             InvestmentConfiguration.InvestmentType.valueOf(request.investmentType());
-        
+
         InvestmentConfiguration.PropertyType propertyType =
             InvestmentConfiguration.PropertyType.valueOf(request.propertyType());
-        
+
         InvestmentConfiguration.InvestmentGoal goal =
             InvestmentConfiguration.InvestmentGoal.valueOf(request.investmentGoal());
-        
+
         Money budget = new Money(request.budget(), Money.Currency.EUR);
-        
-        // Create configuration
-        InvestmentConfiguration config = new InvestmentConfiguration(
-            location,
+
+        AnalysisResult result = analysisService.performAnalysisForLocation(
+            locationId,
             investmentType,
             budget,
             propertyType,
-            goal
+            goal,
+            request.acceptsRenovation() != null && request.acceptsRenovation()
         );
-        
-        if (request.acceptsRenovation()) {
-            config.setAcceptsRenovation(true);
-        }
-        
-        // Perform analysis
-        AnalysisResult result = analysisService.performAnalysis(config);
-        
-        // Convert to response DTO
         AnalysisResponse response = mapToResponse(result);
-        
+
         log.info("Analysis completed: ID={}, ROI={}%, Payback={} months",
             response.id(),
             String.format("%.2f", response.metrics().annualROI()),
             response.metrics().paybackPeriodMonths());
-        
+
         return ResponseEntity.ok(response);
     }
     

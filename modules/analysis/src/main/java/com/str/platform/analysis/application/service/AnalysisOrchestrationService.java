@@ -37,13 +37,34 @@ public class AnalysisOrchestrationService {
     private static final double SEARCH_RADIUS_KM = 5.0;
     
     /**
-     * Perform complete investment analysis
+     * Perform complete investment analysis for an existing Location.
      */
     @Transactional
-    @Cacheable(value = "analysisResults", key = "#config.location.toString() + '-' + #config.budget.amount")
-    public AnalysisResult performAnalysis(InvestmentConfiguration config) {
-        log.info("Starting investment analysis for location: {} with budget: {}",
-            config.getLocation(), config.getBudget());
+    @Cacheable(value = "analysisResults", key = "#locationId.toString() + '-' + #budget.amount")
+    public AnalysisResult performAnalysisForLocation(
+            UUID locationId,
+            InvestmentConfiguration.InvestmentType investmentType,
+            Money budget,
+            InvestmentConfiguration.PropertyType propertyType,
+            InvestmentConfiguration.InvestmentGoal goal,
+            boolean acceptsRenovation
+    ) {
+        Location location = locationService.getById(locationId);
+
+        InvestmentConfiguration config = new InvestmentConfiguration(
+            location.getCoordinates(),
+            investmentType,
+            budget,
+            propertyType,
+            goal
+        );
+
+        if (acceptsRenovation) {
+            config.setAcceptsRenovation(true);
+        }
+
+        log.info("Starting investment analysis for locationId={} {} with budget: {}",
+            locationId, config.getLocation(), config.getBudget());
         
         // 1. Fetch nearby properties (within 5km radius)
         List<Property> nearbyProperties = fetchNearbyProperties(config);
@@ -78,15 +99,9 @@ public class AnalysisOrchestrationService {
             marketAnalysis,
             dataQuality
         );
-        
-        // Find or create Location for this analysis
-        Location location = locationService.findOrCreateByCoordinates(
-            config.getLocation().getLatitude(),
-            config.getLocation().getLongitude()
-        );
-        
+
         // Persist to database
-        var entity = analysisResultMapper.toEntity(result, location.getId());
+        var entity = analysisResultMapper.toEntity(result, locationId);
         var savedEntity = analysisResultRepository.save(entity);
         
         log.info("Analysis complete: ROI={}%, Payback={} months, DataQuality={}",
