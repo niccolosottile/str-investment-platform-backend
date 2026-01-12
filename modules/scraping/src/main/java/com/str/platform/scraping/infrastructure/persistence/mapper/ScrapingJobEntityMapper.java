@@ -96,7 +96,7 @@ public class ScrapingJobEntityMapper {
     private ScrapingJob.Platform mapPlatformToDomain(ScrapingJobEntity.Platform entityPlatform) {
         return switch (entityPlatform) {
             case AIRBNB -> ScrapingJob.Platform.AIRBNB;
-            case BOOKING_COM -> ScrapingJob.Platform.BOOKING;
+            case BOOKING -> ScrapingJob.Platform.BOOKING;
             case VRBO -> ScrapingJob.Platform.VRBO;
         };
     }
@@ -104,7 +104,7 @@ public class ScrapingJobEntityMapper {
     private ScrapingJobEntity.Platform mapPlatformToEntity(ScrapingJob.Platform domainPlatform) {
         return switch (domainPlatform) {
             case AIRBNB -> ScrapingJobEntity.Platform.AIRBNB;
-            case BOOKING -> ScrapingJobEntity.Platform.BOOKING_COM;
+            case BOOKING -> ScrapingJobEntity.Platform.BOOKING;
             case VRBO -> ScrapingJobEntity.Platform.VRBO;
         };
     }

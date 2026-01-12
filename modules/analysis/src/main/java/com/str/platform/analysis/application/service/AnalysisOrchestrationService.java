@@ -234,7 +234,7 @@ public class AnalysisOrchestrationService {
     ) {
         return switch (entityPlatform) {
             case AIRBNB -> com.str.platform.scraping.domain.model.ScrapingJob.Platform.AIRBNB;
-            case BOOKING_COM -> com.str.platform.scraping.domain.model.ScrapingJob.Platform.BOOKING;
+            case BOOKING -> com.str.platform.scraping.domain.model.ScrapingJob.Platform.BOOKING;
             case VRBO -> com.str.platform.scraping.domain.model.ScrapingJob.Platform.VRBO;
         };
     }

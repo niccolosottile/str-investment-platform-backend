@@ -86,7 +86,7 @@ public class ScrapingJobEntity {
      */
     public enum Platform {
         AIRBNB,
-        BOOKING_COM,
+        BOOKING,
         VRBO
     }
 }
