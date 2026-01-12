@@ -10,6 +10,7 @@ import com.str.platform.scraping.infrastructure.persistence.repository.JpaProper
 import com.str.platform.scraping.infrastructure.persistence.repository.JpaScrapingJobRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.annotation.RabbitHandler;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Component;
@@ -27,6 +28,7 @@ import java.util.UUID;
 @Slf4j
 @Component
 @RequiredArgsConstructor
+@RabbitListener(queues = ScrapingResultConsumer.SCRAPING_RESULT_QUEUE)
 public class ScrapingResultConsumer {
     
     private final JpaScrapingJobRepository scrapingJobRepository;
@@ -40,7 +42,7 @@ public class ScrapingResultConsumer {
      * Handle scraping job completed event from Python worker.
      * Updates job status and saves scraped properties.
      */
-    @RabbitListener(queues = SCRAPING_RESULT_QUEUE)
+    @RabbitHandler
     @Transactional
     public void handleJobCompleted(ScrapingJobCompletedEvent event) {
         log.info("Received scraping job completed event: jobId={}, propertiesFound={}",
@@ -109,7 +111,7 @@ public class ScrapingResultConsumer {
      * Handle scraping job failed event from Python worker.
      * Updates job status with error information.
      */
-    @RabbitListener(queues = SCRAPING_RESULT_QUEUE)
+    @RabbitHandler
     @Transactional
     public void handleJobFailed(ScrapingJobFailedEvent event) {
         log.warn("Received scraping job failed event: jobId={}, error={}",
