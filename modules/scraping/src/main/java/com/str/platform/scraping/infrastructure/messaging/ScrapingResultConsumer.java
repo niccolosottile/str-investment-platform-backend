@@ -1,7 +1,5 @@
 package com.str.platform.scraping.infrastructure.messaging;
 
-import com.str.platform.location.application.service.LocationService;
-import com.str.platform.location.domain.model.Location;
 import com.str.platform.scraping.domain.event.ScrapingJobCompletedEvent;
 import com.str.platform.scraping.domain.event.ScrapingJobFailedEvent;
 import com.str.platform.scraping.infrastructure.persistence.entity.PropertyEntity;
@@ -34,7 +32,6 @@ public class ScrapingResultConsumer {
     private final JpaScrapingJobRepository scrapingJobRepository;
     private final JpaPropertyRepository propertyRepository;
     private final CacheManager cacheManager;
-    private final LocationService locationService;
     
     public static final String SCRAPING_RESULT_QUEUE = "str.scraping.result.queue";
     
