@@ -2,10 +2,14 @@ package com.str.platform.scraping.domain.event;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.str.platform.scraping.domain.model.JobType;
+import com.str.platform.scraping.domain.model.PropertyAvailability;
+import com.str.platform.scraping.domain.model.PriceSample;
 import com.str.platform.shared.domain.common.DomainEvent;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -19,8 +23,14 @@ import java.util.UUID;
 public class ScrapingJobCompletedEvent implements DomainEvent {
     
     private final UUID jobId;
+    private final JobType jobType;
+    private final UUID locationId;
+    private final LocalDate searchDateStart;
+    private final LocalDate searchDateEnd;
     private final int propertiesFound;
     private final List<PropertyData> properties;
+    private final Integer duplicatesRemoved;
+    private final Integer filteredOutOfBounds;
     private final LocalDateTime occurredAt;
     
     @Override
@@ -50,6 +60,10 @@ public class ScrapingJobCompletedEvent implements DomainEvent {
         private final String imageUrl;
         private final String propertyUrl;
         private final List<String> amenities;
+        private final List<PropertyAvailability> availability;
+        private final PriceSample priceSample;
+        private final String dataCompleteness;
+        private final LocalDateTime pdpLastScraped;
         
         @JsonCreator
         public PropertyData(
@@ -69,7 +83,11 @@ public class ScrapingJobCompletedEvent implements DomainEvent {
                 @JsonProperty("isSuperhost") Boolean isSuperhost,
                 @JsonProperty("imageUrl") String imageUrl,
                 @JsonProperty("propertyUrl") String propertyUrl,
-                @JsonProperty("amenities") List<String> amenities
+                @JsonProperty("amenities") List<String> amenities,
+                @JsonProperty("availability") List<PropertyAvailability> availability,
+                @JsonProperty("priceSample") PriceSample priceSample,
+                @JsonProperty("dataCompleteness") String dataCompleteness,
+                @JsonProperty("pdpLastScraped") LocalDateTime pdpLastScraped
         ) {
             this.platformId = platformId;
             this.platform = platform;
@@ -88,6 +106,10 @@ public class ScrapingJobCompletedEvent implements DomainEvent {
             this.imageUrl = imageUrl;
             this.propertyUrl = propertyUrl;
             this.amenities = amenities;
+            this.availability = availability;
+            this.priceSample = priceSample;
+            this.dataCompleteness = dataCompleteness;
+            this.pdpLastScraped = pdpLastScraped;
         }
     }
 }

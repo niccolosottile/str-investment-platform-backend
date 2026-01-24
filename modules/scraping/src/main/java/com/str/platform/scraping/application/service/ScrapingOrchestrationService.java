@@ -85,15 +85,18 @@ public class ScrapingOrchestrationService {
 
         // Publish event to RabbitMQ for Python scraper
         try {
-            ScrapingJobCreatedEvent event = new ScrapingJobCreatedEvent(
-                savedJob.getId(),
-                locationId,
-                coordinates.getLatitude(),
-                coordinates.getLongitude(),
-                platform,
-                radiusKm,
-                LocalDateTime.now()
-            );
+            // TODO: Need location name and bounding box for new event format
+            // For now, using placeholder values - this needs location resolution service
+            ScrapingJobCreatedEvent event = ScrapingJobCreatedEvent.builder()
+                .jobId(savedJob.getId())
+                .locationId(locationId)
+                .locationName("Location-" + locationId) // TODO: Get from location service
+                .jobType(com.str.platform.scraping.domain.model.JobType.FULL_PROFILE)
+                .platform(platform)
+                .searchDateStart(java.time.LocalDate.now().plusDays(30))
+                .searchDateEnd(java.time.LocalDate.now().plusDays(37))
+                .occurredAt(LocalDateTime.now())
+                .build();
 
             jobPublisher.publishJobCreated(event);
 
@@ -276,15 +279,17 @@ public class ScrapingOrchestrationService {
         
         // Publish retry event
         try {
-            ScrapingJobCreatedEvent event = new ScrapingJobCreatedEvent(
-                domain.getId(),
-                entity.getLocationId(),
-                coords.getLatitude(),
-                coords.getLongitude(),
-                domain.getPlatform(),
-                domain.getRadiusKm(),
-                LocalDateTime.now()
-            );
+            // TODO: Need location name and bounding box for new event format
+            ScrapingJobCreatedEvent event = ScrapingJobCreatedEvent.builder()
+                .jobId(domain.getId())
+                .locationId(entity.getLocationId())
+                .locationName("Location-" + entity.getLocationId()) // TODO: Get from location service
+                .jobType(com.str.platform.scraping.domain.model.JobType.FULL_PROFILE)
+                .platform(domain.getPlatform())
+                .searchDateStart(java.time.LocalDate.now().plusDays(30))
+                .searchDateEnd(java.time.LocalDate.now().plusDays(37))
+                .occurredAt(LocalDateTime.now())
+                .build();
             
             jobPublisher.publishJobCreated(event);
             
