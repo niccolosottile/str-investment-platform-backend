@@ -20,6 +20,11 @@ public interface JpaScrapingJobRepository extends JpaRepository<ScrapingJobEntit
      * Find jobs by status
      */
     List<ScrapingJobEntity> findByStatus(ScrapingJobEntity.JobStatus status);
+    
+    /**
+     * Find jobs by location ID
+     */
+    List<ScrapingJobEntity> findByLocationId(UUID locationId);
 
     /**
      * Find jobs by platform and status

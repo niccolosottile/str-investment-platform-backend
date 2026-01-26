@@ -45,4 +45,25 @@ public class Distance {
     public static Distance fromApi(double kilometers, int drivingTimeMinutes) {
         return new Distance(kilometers, drivingTimeMinutes, DrivingTimeSource.API);
     }
+    
+    /**
+     * Calculate straight-line distance between two coordinates using Haversine formula.
+     */
+    public static Distance calculate(Coordinates from, Coordinates to) {
+        final int EARTH_RADIUS_KM = 6371;
+        
+        double lat1Rad = Math.toRadians(from.getLatitude());
+        double lat2Rad = Math.toRadians(to.getLatitude());
+        double deltaLat = Math.toRadians(to.getLatitude() - from.getLatitude());
+        double deltaLng = Math.toRadians(to.getLongitude() - from.getLongitude());
+        
+        double a = Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2)
+                + Math.cos(lat1Rad) * Math.cos(lat2Rad)
+                * Math.sin(deltaLng / 2) * Math.sin(deltaLng / 2);
+        
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        double kilometers = EARTH_RADIUS_KM * c;
+        
+        return fromStraightLine(kilometers);
+    }
 }

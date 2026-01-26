@@ -1,6 +1,7 @@
 package com.str.platform.location.application.service;
 
 import com.str.platform.location.domain.model.Address;
+import com.str.platform.location.domain.model.BoundingBox;
 import com.str.platform.location.domain.model.Coordinates;
 import com.str.platform.location.domain.model.Location;
 import com.str.platform.location.domain.repository.LocationRepository;
@@ -29,6 +30,29 @@ public class LocationService {
 
     private final LocationRepository locationRepository;
     private final MapboxClient mapboxClient;
+
+    /**
+     * Search for locations by query string and return best match.
+     * Uses Mapbox Geocoding API with highest relevance score.
+     * 
+     * @param query Search query (e.g., "Rome, Italy")
+     * @return Best matching location
+     * @throws EntityNotFoundException if no locations found
+     */
+    @Transactional
+    public Location findBestMatch(String query) {
+        log.info("Finding best location match for query: {}", query);
+
+        GeocodingResponse response = mapboxClient.geocode(query, 1);
+
+        if (response == null || response.getFeatures() == null || response.getFeatures().isEmpty()) {
+            log.warn("No locations found for query: {}", query);
+            throw new EntityNotFoundException("Location", query);
+        }
+
+        // Return first result (highest relevance)
+        return convertAndSaveLocation(response.getFeatures().get(0));
+    }
 
     /**
      * Search for locations by query string.
@@ -195,11 +219,30 @@ public class LocationService {
 
         if (existing.isPresent()) {
             log.debug("Location already exists, returning existing");
-            return existing.get();
+            Location location = existing.get();
+            
+            // Update bounding box if available and not already set
+            if (feature.hasBoundingBox() && location.getBoundingBox() == null) {
+                BoundingBox bbox = BoundingBox.fromArray(feature.getBoundingBox());
+                location.setBoundingBox(bbox);
+                locationRepository.save(location);
+                log.debug("Updated existing location with bounding box: {}", bbox);
+            }
+            
+            return location;
         }
 
-        // Create and save new location
-        Location location = new Location(coordinates, address);
+        // Create location with bounding box if available
+        Location location;
+        if (feature.hasBoundingBox()) {
+            BoundingBox bbox = BoundingBox.fromArray(feature.getBoundingBox());
+            location = new Location(coordinates, address, bbox);
+            log.debug("Creating location with bounding box: {}", bbox);
+        } else {
+            location = new Location(coordinates, address);
+            log.debug("Creating location without bounding box");
+        }
+        
         return locationRepository.save(location);
     }
 }

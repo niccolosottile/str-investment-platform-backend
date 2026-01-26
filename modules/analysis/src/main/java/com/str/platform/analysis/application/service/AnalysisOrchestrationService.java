@@ -14,7 +14,6 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -33,8 +32,6 @@ public class AnalysisOrchestrationService {
     private final JpaAnalysisResultRepository analysisResultRepository;
     private final AnalysisResultEntityMapper analysisResultMapper;
     private final LocationService locationService;
-    
-    private static final double SEARCH_RADIUS_KM = 5.0;
     
     /**
      * Perform complete investment analysis for an existing Location.
@@ -66,31 +63,30 @@ public class AnalysisOrchestrationService {
         log.info("Starting investment analysis for locationId={} {} with budget: {}",
             locationId, config.getLocation(), config.getBudget());
         
-        // 1. Fetch nearby properties (within 5km radius)
-        List<Property> nearbyProperties = fetchNearbyProperties(config);
+        // 1. Fetch properties for this location
+        List<Property> properties = fetchPropertiesByLocation(locationId);
         
-        if (nearbyProperties.isEmpty()) {
-            log.warn("No properties found near {}. Returning empty analysis.", 
-                config.getLocation());
+        if (properties.isEmpty()) {
+            log.warn("No properties found for location {}. Returning empty analysis.", locationId);
             return createEmptyAnalysis(config);
         }
         
         // 2. Perform market analysis
         MarketAnalysis marketAnalysis = marketAnalysisService.analyzeMarket(
             config.getLocation(),
-            nearbyProperties
+            properties
         );
         
         // 3. Calculate investment metrics
         InvestmentMetrics metrics = investmentAnalysisService.calculateMetrics(
             config,
             marketAnalysis.getAverageDailyRate(),
-            nearbyProperties.size()
+            properties.size()
         );
         
         // 4. Determine data quality
         AnalysisResult.DataQuality dataQuality = 
-            investmentAnalysisService.determineDataQuality(nearbyProperties.size());
+            investmentAnalysisService.determineDataQuality(properties.size());
         
         // 5. Create and save analysis result
         AnalysisResult result = new AnalysisResult(
@@ -138,29 +134,16 @@ public class AnalysisOrchestrationService {
     }
     
     /**
-     * Fetch properties near the investment location
+     * Fetch all properties for a specific location.
      */
-    private List<Property> fetchNearbyProperties(InvestmentConfiguration config) {
-        // Calculate bounding box for search (approximate)
-        double latDelta = SEARCH_RADIUS_KM / 111.0; // 1 degree lat ≈ 111 km
-        double lngDelta = SEARCH_RADIUS_KM / (111.0 * Math.cos(Math.toRadians(config.getLocation().getLatitude())));
+    private List<Property> fetchPropertiesByLocation(UUID locationId) {
+        log.debug("Fetching properties for location: {}", locationId);
         
-        BigDecimal minLat = BigDecimal.valueOf(config.getLocation().getLatitude() - latDelta);
-        BigDecimal maxLat = BigDecimal.valueOf(config.getLocation().getLatitude() + latDelta);
-        BigDecimal minLng = BigDecimal.valueOf(config.getLocation().getLongitude() - lngDelta);
-        BigDecimal maxLng = BigDecimal.valueOf(config.getLocation().getLongitude() + lngDelta);
+        var entities = propertyRepository.findByLocationId(locationId);
         
-        log.debug("Searching properties in bounds: lat[{}, {}], lng[{}, {}]",
-            minLat, maxLat, minLng, maxLng);
-        
-        // Fetch from database
-        var entities = propertyRepository.findWithinBounds(minLat, maxLat, minLng, maxLng);
-        
-        log.info("Found {} properties in bounding box", entities.size());
+        log.info("Found {} properties for location {}", entities.size(), locationId);
         
         // Convert entities to domain objects
-        // Note: We need to create a PropertyEntityMapper for this
-        // For now, create domain objects manually
         return entities.stream()
             .map(entity -> {
                 var coords = new com.str.platform.location.domain.model.Coordinates(
@@ -173,7 +156,7 @@ public class AnalysisOrchestrationService {
                     mapPlatform(entity.getPlatform()),
                     entity.getPlatformPropertyId(),
                     coords,
-                    entity.getPrice(), // PropertyEntity uses 'price' not 'pricePerNight'
+                    entity.getPrice(),
                     mapPropertyType(entity.getPropertyType())
                 );
                 

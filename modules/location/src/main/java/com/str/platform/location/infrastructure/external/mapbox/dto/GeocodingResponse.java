@@ -50,6 +50,9 @@ public class GeocodingResponse {
 
         @JsonProperty("context")
         private List<Context> context;
+        
+        @JsonProperty("bbox")
+        private List<Double> bbox; // [minX, minY, maxX, maxY]
 
         /**
          * Get latitude from center coordinates
@@ -87,6 +90,23 @@ public class GeocodingResponse {
          */
         public String getCountry() {
             return findContextValue("country");
+        }
+        
+        /**
+         * Check if bounding box is available
+         */
+        public boolean hasBoundingBox() {
+            return bbox != null && bbox.size() == 4;
+        }
+        
+        /**
+         * Get bounding box as array [minX, minY, maxX, maxY]
+         */
+        public double[] getBoundingBox() {
+            if (!hasBoundingBox()) {
+                return null;
+            }
+            return new double[] {bbox.get(0), bbox.get(1), bbox.get(2), bbox.get(3)};
         }
 
         private String findContextValue(String type) {

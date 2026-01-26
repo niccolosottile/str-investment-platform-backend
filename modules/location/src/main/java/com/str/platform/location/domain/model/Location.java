@@ -14,6 +14,7 @@ public class Location extends BaseEntity {
     
     private Coordinates coordinates;
     private Address address;
+    private BoundingBox boundingBox;
     private DataQuality dataQuality;
     private LocalDateTime lastScraped;
     private Integer propertyCount;
@@ -32,6 +33,15 @@ public class Location extends BaseEntity {
         super();
         this.coordinates = coordinates;
         this.address = address;
+        this.dataQuality = DataQuality.LOW;
+        this.propertyCount = 0;
+    }
+    
+    public Location(Coordinates coordinates, Address address, BoundingBox boundingBox) {
+        super();
+        this.coordinates = coordinates;
+        this.address = address;
+        this.boundingBox = boundingBox;
         this.dataQuality = DataQuality.LOW;
         this.propertyCount = 0;
     }
@@ -65,5 +75,14 @@ public class Location extends BaseEntity {
             return true;
         }
         return lastScraped.isBefore(LocalDateTime.now().minusHours(24));
+    }
+    
+    public String getName() {
+        return address.getFullAddress();
+    }
+    
+    public void setBoundingBox(BoundingBox boundingBox) {
+        this.boundingBox = boundingBox;
+        markAsUpdated();
     }
 }

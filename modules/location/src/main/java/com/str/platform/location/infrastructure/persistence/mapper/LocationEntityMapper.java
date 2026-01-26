@@ -1,6 +1,7 @@
 package com.str.platform.location.infrastructure.persistence.mapper;
 
 import com.str.platform.location.domain.model.Address;
+import com.str.platform.location.domain.model.BoundingBox;
 import com.str.platform.location.domain.model.Coordinates;
 import com.str.platform.location.domain.model.Location;
 import com.str.platform.location.infrastructure.persistence.entity.LocationEntity;
@@ -34,8 +35,22 @@ public class LocationEntityMapper {
             entity.getCountry(),
             entity.getFullAddress()
         );
+        
+        // Create bounding box if available
+        BoundingBox boundingBox = null;
+        if (entity.getBoundingBoxSwLng() != null && entity.getBoundingBoxSwLat() != null
+            && entity.getBoundingBoxNeLng() != null && entity.getBoundingBoxNeLat() != null) {
+            boundingBox = new BoundingBox(
+                entity.getBoundingBoxSwLng().doubleValue(),
+                entity.getBoundingBoxSwLat().doubleValue(),
+                entity.getBoundingBoxNeLng().doubleValue(),
+                entity.getBoundingBoxNeLat().doubleValue()
+            );
+        }
 
-        Location location = new Location(coordinates, address);
+        Location location = boundingBox != null 
+            ? new Location(coordinates, address, boundingBox)
+            : new Location(coordinates, address);
         
         // Set ID using reflection since BaseEntity doesn't expose setter
         try {
@@ -69,7 +84,7 @@ public class LocationEntityMapper {
             return null;
         }
 
-        return LocationEntity.builder()
+        LocationEntity.LocationEntityBuilder builder = LocationEntity.builder()
             .id(domain.getId())
             .latitude(BigDecimal.valueOf(domain.getCoordinates().getLatitude()))
             .longitude(BigDecimal.valueOf(domain.getCoordinates().getLongitude()))
@@ -82,8 +97,19 @@ public class LocationEntityMapper {
                 ? domain.getLastScraped().atZone(java.time.ZoneId.systemDefault()).toInstant()
                 : null)
             .propertyCount(domain.getPropertyCount())
-            .averagePrice(null)
-            .build();
+            .averagePrice(null);
+        
+        // Add bounding box if available
+        if (domain.getBoundingBox() != null) {
+            BoundingBox bbox = domain.getBoundingBox();
+            builder
+                .boundingBoxSwLng(BigDecimal.valueOf(bbox.getSouthWestLongitude()))
+                .boundingBoxSwLat(BigDecimal.valueOf(bbox.getSouthWestLatitude()))
+                .boundingBoxNeLng(BigDecimal.valueOf(bbox.getNorthEastLongitude()))
+                .boundingBoxNeLat(BigDecimal.valueOf(bbox.getNorthEastLatitude()));
+        }
+        
+        return builder.build();
     }
 
     /**
@@ -95,6 +121,15 @@ public class LocationEntityMapper {
         }
 
         entity.setLatitude(BigDecimal.valueOf(domain.getCoordinates().getLatitude()));
+        
+        // Update bounding box if available
+        if (domain.getBoundingBox() != null) {
+            BoundingBox bbox = domain.getBoundingBox();
+            entity.setBoundingBoxSwLng(BigDecimal.valueOf(bbox.getSouthWestLongitude()));
+            entity.setBoundingBoxSwLat(BigDecimal.valueOf(bbox.getSouthWestLatitude()));
+            entity.setBoundingBoxNeLng(BigDecimal.valueOf(bbox.getNorthEastLongitude()));
+            entity.setBoundingBoxNeLat(BigDecimal.valueOf(bbox.getNorthEastLatitude()));
+        }
         entity.setLongitude(BigDecimal.valueOf(domain.getCoordinates().getLongitude()));
         entity.setCity(domain.getAddress().getCity());
         entity.setRegion(domain.getAddress().getRegion());

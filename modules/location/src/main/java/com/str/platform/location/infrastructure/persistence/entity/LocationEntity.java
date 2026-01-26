@@ -47,6 +47,18 @@ public class LocationEntity {
 
     @Column(name = "full_address")
     private String fullAddress;
+    
+    @Column(name = "bbox_sw_lng", precision = 11, scale = 8)
+    private BigDecimal boundingBoxSwLng;
+    
+    @Column(name = "bbox_sw_lat", precision = 10, scale = 8)
+    private BigDecimal boundingBoxSwLat;
+    
+    @Column(name = "bbox_ne_lng", precision = 11, scale = 8)
+    private BigDecimal boundingBoxNeLng;
+    
+    @Column(name = "bbox_ne_lat", precision = 10, scale = 8)
+    private BigDecimal boundingBoxNeLat;
 
     @Column(name = "data_quality", nullable = false)
     @Enumerated(EnumType.STRING)

@@ -1,7 +1,8 @@
 package com.str.platform.scraping.application.service;
 
-import com.str.platform.location.domain.model.Coordinates;
 import com.str.platform.location.application.service.LocationService;
+import com.str.platform.location.domain.model.BoundingBox;
+import com.str.platform.location.domain.model.Coordinates;
 import com.str.platform.location.domain.model.Location;
 import com.str.platform.scraping.domain.event.ScrapingJobCreatedEvent;
 import com.str.platform.scraping.domain.model.ScrapingJob;
@@ -37,46 +38,37 @@ public class ScrapingOrchestrationService {
     private final ScrapingJobPublisher jobPublisher;
     private final LocationService locationService;
     
-    private static final int DEFAULT_RADIUS_KM = 5;
-    
     /**
-     * Create and publish a new scraping job.
-     * Returns the created domain model with ID.
+     * Create and publish a scraping job tied to an existing Location.
      */
     @Transactional
-    public ScrapingJob createScrapingJob(
-            Coordinates coordinates,
-            ScrapingJob.Platform platform,
-            int radiusKm
+    public ScrapingJob createScrapingJobForLocation(
+            UUID locationId,
+            ScrapingJob.Platform platform
     ) {
-        // Location-first: resolve (or create) a Location, then run a location-based job.
-        var location = locationService.findOrCreateByCoordinates(
-            coordinates.getLatitude(),
-            coordinates.getLongitude()
-        );
-        return createScrapingJobForLocation(location.getId(), platform, radiusKm);
+        return createScrapingJobForLocation(locationId, platform, 
+            com.str.platform.scraping.domain.model.JobType.FULL_PROFILE);
     }
-
+    
     /**
-     * Create and publish a new scraping job tied to an existing Location.
-     * The job retains the Location ID for consistent result ingestion.
+     * Create and publish a scraping job tied to an existing Location.
+     * Supports both FULL_PROFILE and PRICE_SAMPLE job types.
      */
     @Transactional
     public ScrapingJob createScrapingJobForLocation(
             UUID locationId,
             ScrapingJob.Platform platform,
-            int radiusKm
+            com.str.platform.scraping.domain.model.JobType jobType
     ) {
         Location location = locationService.getById(locationId);
         Coordinates coordinates = location.getCoordinates();
 
-        log.info("Creating scraping job for locationId={}: platform={}, coords=({}, {}), radius={}km",
-            locationId, platform, coordinates.getLatitude(), coordinates.getLongitude(), radiusKm);
+        log.info("Creating {} job for locationId={} ({}): platform={}, coords=({}, {})",
+            jobType, locationId, location.getName(), platform, 
+            coordinates.getLatitude(), coordinates.getLongitude());
 
-        // Create domain object
-        ScrapingJob job = new ScrapingJob(coordinates, platform, radiusKm);
+        ScrapingJob job = new ScrapingJob(coordinates, platform, 0);
 
-        // Convert to entity, set locationId, and save
         ScrapingJobEntity entity = scrapingJobMapper.toEntity(job);
         entity.setLocationId(locationId);
         entity = scrapingJobRepository.save(entity);
@@ -85,27 +77,41 @@ public class ScrapingOrchestrationService {
 
         // Publish event to RabbitMQ for Python scraper
         try {
-            // TODO: Need location name and bounding box for new event format
-            // For now, using placeholder values - this needs location resolution service
-            ScrapingJobCreatedEvent event = ScrapingJobCreatedEvent.builder()
-                .jobId(savedJob.getId())
-                .locationId(locationId)
-                .locationName("Location-" + locationId) // TODO: Get from location service
-                .jobType(com.str.platform.scraping.domain.model.JobType.FULL_PROFILE)
-                .platform(platform)
-                .searchDateStart(java.time.LocalDate.now().plusDays(30))
-                .searchDateEnd(java.time.LocalDate.now().plusDays(37))
-                .occurredAt(LocalDateTime.now())
-                .build();
-
+            BoundingBox bbox = location.getBoundingBox();
+            
+            if (bbox == null) {
+                log.warn("Location {} has no bounding box - scraping may be less accurate", locationId);
+            }
+            
+            ScrapingJobCreatedEvent.ScrapingJobCreatedEventBuilder eventBuilder = 
+                ScrapingJobCreatedEvent.builder()
+                    .jobId(savedJob.getId())
+                    .locationId(locationId)
+                    .locationName(location.getName())
+                    .jobType(jobType)
+                    .platform(platform)
+                    .searchDateStart(java.time.LocalDate.now().plusDays(30))
+                    .searchDateEnd(java.time.LocalDate.now().plusDays(37))
+                    .occurredAt(LocalDateTime.now());
+            
+            // Add bounding box if available
+            if (bbox != null) {
+                eventBuilder
+                    .boundingBoxSwLng(bbox.getSouthWestLongitude())
+                    .boundingBoxSwLat(bbox.getSouthWestLatitude())
+                    .boundingBoxNeLng(bbox.getNorthEastLongitude())
+                    .boundingBoxNeLat(bbox.getNorthEastLatitude());
+            }
+            
+            ScrapingJobCreatedEvent event = eventBuilder.build();
             jobPublisher.publishJobCreated(event);
 
-            // Mark job as in progress (update only mutable fields to preserve locationId)
+            // Mark job as in progress
             savedJob.start();
             scrapingJobMapper.updateEntity(savedJob, entity);
             scrapingJobRepository.save(entity);
 
-            log.info("Successfully created and published scraping job: {}", savedJob.getId());
+            log.info("Successfully created and published {} job: {}", jobType, savedJob.getId());
         } catch (Exception e) {
             log.error("Failed to publish scraping job: {}", savedJob.getId(), e);
 
@@ -117,59 +123,34 @@ public class ScrapingOrchestrationService {
 
         return savedJob;
     }
-    
-    /**
-     * Create scraping jobs for all platforms (Airbnb, Booking, VRBO).
-     * Returns list of created jobs.
-     */
-    @Transactional
-    public List<ScrapingJob> createScrapingJobsForAllPlatforms(Coordinates coordinates) {
-        return createScrapingJobsForAllPlatforms(coordinates, DEFAULT_RADIUS_KM);
-    }
-    
-    /**
-     * Create scraping jobs for all platforms with custom radius.
-     */
-    @Transactional
-    public List<ScrapingJob> createScrapingJobsForAllPlatforms(
-            Coordinates coordinates, 
-            int radiusKm
-    ) {
-        log.info("Creating scraping jobs for all platforms at ({}, {}), radius={}km",
-            coordinates.getLatitude(), coordinates.getLongitude(), radiusKm);
-        
-        List<ScrapingJob> jobs = new ArrayList<>();
-        
-        for (ScrapingJob.Platform platform : ScrapingJob.Platform.values()) {
-            try {
-                ScrapingJob job = createScrapingJob(coordinates, platform, radiusKm);
-                jobs.add(job);
-            } catch (Exception e) {
-                log.error("Failed to create scraping job for platform: {}", platform, e);
-                // Continue with other platforms
-            }
-        }
-        
-        log.info("Created {} scraping jobs", jobs.size());
-        return jobs;
-    }
+
 
     /**
      * Create scraping jobs for all platforms for an existing Location.
      */
     @Transactional
+    public List<ScrapingJob> createScrapingJobsForAllPlatformsForLocation(UUID locationId) {
+        return createScrapingJobsForAllPlatformsForLocation(locationId, 
+            com.str.platform.scraping.domain.model.JobType.FULL_PROFILE);
+    }
+    
+    /**
+     * Create scraping jobs for all platforms for an existing Location with specific job type.
+     */
+    @Transactional
     public List<ScrapingJob> createScrapingJobsForAllPlatformsForLocation(
             UUID locationId,
-            int radiusKm
+            com.str.platform.scraping.domain.model.JobType jobType
     ) {
-        log.info("Creating scraping jobs for all platforms for locationId={}, radius={}km", locationId, radiusKm);
+        log.info("Creating {} jobs for all platforms for locationId={}", jobType, locationId);
 
         List<ScrapingJob> jobs = new ArrayList<>();
         for (ScrapingJob.Platform platform : ScrapingJob.Platform.values()) {
             try {
-                jobs.add(createScrapingJobForLocation(locationId, platform, radiusKm));
+                jobs.add(createScrapingJobForLocation(locationId, platform, jobType));
             } catch (Exception e) {
-                log.error("Failed to create scraping job for locationId={} platform={}", locationId, platform, e);
+                log.error("Failed to create {} job for locationId={} platform={}", 
+                    jobType, locationId, platform, e);
             }
         }
 
@@ -187,23 +168,11 @@ public class ScrapingOrchestrationService {
     }
     
     /**
-     * Get scraping jobs for a specific location (within radius)
+     * Get scraping jobs for a specific location
      */
-    public List<ScrapingJob> getScrapingJobsNearLocation(Coordinates coordinates, int radiusKm) {
-        // Query jobs within bounding box
-        List<ScrapingJobEntity> entities = scrapingJobRepository.findRecentJobs(
-            Instant.now().minus(Duration.ofDays(7))
-        );
-        
-        // Filter by distance and convert to domain
+    public List<ScrapingJob> getScrapingJobsByLocation(UUID locationId) {
+        List<ScrapingJobEntity> entities = scrapingJobRepository.findByLocationId(locationId);
         return entities.stream()
-            .filter(entity -> {
-                double distance = calculateDistance(
-                    coordinates.getLatitude(), coordinates.getLongitude(),
-                    entity.getLatitude().doubleValue(), entity.getLongitude().doubleValue()
-                );
-                return distance <= radiusKm;
-            })
             .map(scrapingJobMapper::toDomain)
             .collect(Collectors.toList());
     }
@@ -275,21 +244,33 @@ public class ScrapingOrchestrationService {
         
         // Convert to domain and publish retry
         ScrapingJob domain = scrapingJobMapper.toDomain(entity);
-        Coordinates coords = domain.getLocation();
+        
+        // Get location for proper event
+        Location location = locationService.getById(entity.getLocationId());
+        BoundingBox bbox = location.getBoundingBox();
         
         // Publish retry event
         try {
-            // TODO: Need location name and bounding box for new event format
-            ScrapingJobCreatedEvent event = ScrapingJobCreatedEvent.builder()
-                .jobId(domain.getId())
-                .locationId(entity.getLocationId())
-                .locationName("Location-" + entity.getLocationId()) // TODO: Get from location service
-                .jobType(com.str.platform.scraping.domain.model.JobType.FULL_PROFILE)
-                .platform(domain.getPlatform())
-                .searchDateStart(java.time.LocalDate.now().plusDays(30))
-                .searchDateEnd(java.time.LocalDate.now().plusDays(37))
-                .occurredAt(LocalDateTime.now())
-                .build();
+            ScrapingJobCreatedEvent.ScrapingJobCreatedEventBuilder eventBuilder = 
+                ScrapingJobCreatedEvent.builder()
+                    .jobId(domain.getId())
+                    .locationId(entity.getLocationId())
+                    .locationName(location.getName())
+                    .jobType(com.str.platform.scraping.domain.model.JobType.FULL_PROFILE)
+                    .platform(domain.getPlatform())
+                    .searchDateStart(java.time.LocalDate.now().plusDays(30))
+                    .searchDateEnd(java.time.LocalDate.now().plusDays(37))
+                    .occurredAt(LocalDateTime.now());
+            
+            if (bbox != null) {
+                eventBuilder
+                    .boundingBoxSwLng(bbox.getSouthWestLongitude())
+                    .boundingBoxSwLat(bbox.getSouthWestLatitude())
+                    .boundingBoxNeLng(bbox.getNorthEastLongitude())
+                    .boundingBoxNeLat(bbox.getNorthEastLatitude());
+            }
+            
+            ScrapingJobCreatedEvent event = eventBuilder.build();
             
             jobPublisher.publishJobCreated(event);
             
@@ -309,23 +290,5 @@ public class ScrapingOrchestrationService {
         }
         
         return domain;
-    }
-    
-    /**
-     * Calculate distance between two coordinates using Haversine formula
-     */
-    private double calculateDistance(double lat1, double lon1, double lat2, double lon2) {
-        final int R = 6371; // Earth radius in km
-        
-        double latDistance = Math.toRadians(lat2 - lat1);
-        double lonDistance = Math.toRadians(lon2 - lon1);
-        
-        double a = Math.sin(latDistance / 2) * Math.sin(latDistance / 2)
-                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
-                * Math.sin(lonDistance / 2) * Math.sin(lonDistance / 2);
-        
-        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        
-        return R * c;
     }
 }
