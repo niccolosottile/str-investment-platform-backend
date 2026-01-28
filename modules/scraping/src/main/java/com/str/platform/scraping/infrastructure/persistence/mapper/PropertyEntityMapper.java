@@ -32,7 +32,6 @@ public class PropertyEntityMapper {
             mapPlatformToDomain(entity.getPlatform()),
             entity.getPlatformPropertyId(),
             coordinates,
-            entity.getPrice(),
             Property.PropertyType.valueOf(entity.getPropertyType())
         );
 
@@ -44,7 +43,30 @@ public class PropertyEntityMapper {
         } catch (Exception e) {
             throw new RuntimeException("Failed to set property ID", e);
         }
-
+        
+        // Set additional details
+        property.setDetails(
+            entity.getBedrooms() != null ? entity.getBedrooms() : 0,
+            entity.getBathrooms() != null ? entity.getBathrooms().doubleValue() : 0.0,
+            entity.getGuests() != null ? entity.getGuests() : 0
+        );
+        
+        // Set rating
+        if (entity.getRating() != null) {
+            property.setRating(
+                entity.getRating().doubleValue(),
+                entity.getReviewCount() != null ? entity.getReviewCount() : 0
+            );
+        }
+        
+        // Set metadata
+        property.setMetadata(
+            entity.getTitle(),
+            entity.getPropertyUrl(),
+            entity.getImageUrl(),
+            entity.getIsSuperhost()
+        );
+        
         return property;
     }
 
@@ -63,19 +85,16 @@ public class PropertyEntityMapper {
             .platformPropertyId(domain.getPlatformId())
             .latitude(BigDecimal.valueOf(domain.getCoordinates().getLatitude()))
             .longitude(BigDecimal.valueOf(domain.getCoordinates().getLongitude()))
-            .title(null) // Not stored in domain model
+            .title(domain.getTitle())
             .propertyType(domain.getPropertyType().name())
-            .price(domain.getPricePerNight())
-            .currency(domain.getCurrency())
             .bedrooms(domain.getBedrooms())
             .bathrooms((int) domain.getBathrooms())
             .guests(domain.getMaxGuests())
             .rating(domain.getRating() > 0 ? BigDecimal.valueOf(domain.getRating()) : null)
             .reviewCount(domain.getReviewCount())
-            .isSuperhost(null) // Not stored in domain model
-            .instantBook(null) // Not stored in domain model
-            .propertyUrl(null) // Not stored in domain model
-            .imageUrl(null) // Not stored in domain model
+            .isSuperhost(domain.getIsSuperhost())
+            .propertyUrl(domain.getPropertyUrl())
+            .imageUrl(domain.getImageUrl())
             .build();
     }
 

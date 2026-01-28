@@ -164,7 +164,7 @@ public class ScrapingResultConsumer {
     }
     
     /**
-     * Create new property entity from event data
+     * Create new property entity from event data.
      */
     private PropertyEntity createPropertyEntity(ScrapingJobCompletedEvent.PropertyData propData, 
                                                 UUID locationId) {
@@ -176,8 +176,6 @@ public class ScrapingResultConsumer {
             .longitude(java.math.BigDecimal.valueOf(propData.getLongitude()))
             .title(propData.getTitle())
             .propertyType(propData.getPropertyType())
-            .price(propData.getPrice())
-            .currency(propData.getCurrency())
             .bedrooms(propData.getBedrooms())
             .bathrooms(propData.getBathrooms())
             .guests(propData.getGuests())
@@ -197,8 +195,6 @@ public class ScrapingResultConsumer {
         entity.setLocationId(locationId);
         entity.setTitle(propData.getTitle());
         entity.setPropertyType(propData.getPropertyType());
-        entity.setPrice(propData.getPrice());
-        entity.setCurrency(propData.getCurrency());
         entity.setBedrooms(propData.getBedrooms());
         entity.setBathrooms(propData.getBathrooms());
         entity.setGuests(propData.getGuests());

@@ -1,14 +1,12 @@
 package com.str.platform.analysis.application.service;
 
 import com.str.platform.analysis.domain.model.*;
-import com.str.platform.scraping.domain.model.Property;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.List;
 
 /**
  * Service for calculating investment metrics.
@@ -18,13 +16,9 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class InvestmentAnalysisService {
-    
-    private static final double CONSERVATIVE_OCCUPANCY = 0.60; // 60%
-    private static final double EXPECTED_OCCUPANCY = 0.75;     // 75%
-    private static final double OPTIMISTIC_OCCUPANCY = 0.90;   // 90%
-    
-    private static final double MONTHLY_OPERATING_COST_RATIO = 0.20; // 20% of revenue
-    private static final double ANNUAL_PROPERTY_APPRECIATION = 0.03;  // 3%
+
+    private static final double MONTHLY_OPERATING_COST_RATIO = 0.25; // 25% of revenue
+    private static final double ANNUAL_PROPERTY_APPRECIATION = 0.02;  // 2%
     private static final int DAYS_PER_MONTH = 30;
     
     /**
@@ -32,23 +26,26 @@ public class InvestmentAnalysisService {
      */
     public InvestmentMetrics calculateMetrics(
             InvestmentConfiguration config,
-            Money averageDailyRate,
-            int totalProperties
+            MarketAnalysis marketAnalysis
     ) {
         log.info("Calculating investment metrics for location: {}", config.getLocation());
         
+        double expectedOccupancy = marketAnalysis.getAverageOccupancyRate().doubleValue();
+        double conservativeOccupancy = clampOccupancy(expectedOccupancy * 0.85);
+        double optimisticOccupancy = clampOccupancy(expectedOccupancy * 1.15);
+        
         // Calculate revenue projections for different scenarios
         Money monthlyConservative = calculateMonthlyRevenue(
-            averageDailyRate, 
-            CONSERVATIVE_OCCUPANCY
+            marketAnalysis.getAverageDailyRate(),
+            conservativeOccupancy
         );
         Money monthlyExpected = calculateMonthlyRevenue(
-            averageDailyRate, 
-            EXPECTED_OCCUPANCY
+            marketAnalysis.getAverageDailyRate(),
+            expectedOccupancy
         );
         Money monthlyOptimistic = calculateMonthlyRevenue(
-            averageDailyRate, 
-            OPTIMISTIC_OCCUPANCY
+            marketAnalysis.getAverageDailyRate(),
+            optimisticOccupancy
         );
         
         // Calculate annual ROI based on expected scenario
@@ -66,7 +63,7 @@ public class InvestmentAnalysisService {
         );
         
         // Use expected occupancy rate as the primary metric
-        double occupancyRate = EXPECTED_OCCUPANCY;
+        double occupancyRate = expectedOccupancy;
         
         log.info("Calculated ROI: {}%, Payback period: {} months", 
             String.format("%.2f", annualROI), paybackPeriod);
@@ -97,6 +94,16 @@ public class InvestmentAnalysisService {
             BigDecimal.valueOf(netRevenue).setScale(2, RoundingMode.HALF_UP),
             dailyRate.getCurrency()
         );
+    }
+
+    private double clampOccupancy(double occupancyRate) {
+        if (occupancyRate < 0.0) {
+            return 0.0;
+        }
+        if (occupancyRate > 1.0) {
+            return 1.0;
+        }
+        return occupancyRate;
     }
     
     /**
@@ -148,71 +155,6 @@ public class InvestmentAnalysisService {
         
         // Cap at 240 months (20 years) for display purposes
         return Math.min(months, 240);
-    }
-    
-    /**
-     * Calculate average daily rate from property list
-     */
-    public Money calculateAverageDailyRate(List<Property> properties) {
-        if (properties.isEmpty()) {
-            log.warn("No properties available for calculating average daily rate");
-            return Money.euros(0);
-        }
-        
-        // Filter out outliers (properties with price > 3x median or < 0.3x median)
-        List<BigDecimal> prices = properties.stream()
-            .map(Property::getPricePerNight)
-            .sorted()
-            .toList();
-        
-        BigDecimal median = calculateMedian(prices);
-        BigDecimal lowerBound = median.multiply(BigDecimal.valueOf(0.3));
-        BigDecimal upperBound = median.multiply(BigDecimal.valueOf(3.0));
-        
-        List<BigDecimal> filteredPrices = properties.stream()
-            .map(Property::getPricePerNight)
-            .filter(price -> price.compareTo(lowerBound) >= 0 
-                         && price.compareTo(upperBound) <= 0)
-            .toList();
-        
-        if (filteredPrices.isEmpty()) {
-            filteredPrices = prices; // Fallback to all prices
-        }
-        
-        // Calculate average
-        BigDecimal sum = filteredPrices.stream()
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
-        
-        BigDecimal average = sum.divide(
-            BigDecimal.valueOf(filteredPrices.size()),
-            2,
-            RoundingMode.HALF_UP
-        );
-        
-        log.info("Calculated average daily rate: €{} from {} properties (filtered from {})",
-            average, filteredPrices.size(), properties.size());
-        
-        return new Money(average, Money.Currency.EUR);
-    }
-    
-    /**
-     * Calculate median from a sorted list of prices
-     */
-    private BigDecimal calculateMedian(List<BigDecimal> sortedPrices) {
-        int size = sortedPrices.size();
-        if (size == 0) {
-            return BigDecimal.ZERO;
-        }
-        
-        if (size % 2 == 0) {
-            // Even number of elements: average of two middle values
-            BigDecimal middle1 = sortedPrices.get(size / 2 - 1);
-            BigDecimal middle2 = sortedPrices.get(size / 2);
-            return middle1.add(middle2).divide(BigDecimal.valueOf(2), 2, RoundingMode.HALF_UP);
-        } else {
-            // Odd number of elements: return middle value
-            return sortedPrices.get(size / 2);
-        }
     }
     
     /**

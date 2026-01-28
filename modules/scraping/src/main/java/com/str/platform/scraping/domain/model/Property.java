@@ -4,7 +4,6 @@ import com.str.platform.location.domain.model.Coordinates;
 import com.str.platform.shared.domain.common.BaseEntity;
 import lombok.Getter;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -21,14 +20,16 @@ public class Property extends BaseEntity {
     private ScrapingJob.Platform platform;
     private String platformId;
     private Coordinates coordinates;
-    private BigDecimal pricePerNight;
-    private String currency;
+    private String title;
     private PropertyType propertyType;
     private int bedrooms;
     private double bathrooms;
     private int maxGuests;
     private double rating;
     private int reviewCount;
+    private Boolean isSuperhost;
+    private String propertyUrl;
+    private String imageUrl;
     
     /**
      * Full-year availability calendar data.
@@ -68,7 +69,6 @@ public class Property extends BaseEntity {
             ScrapingJob.Platform platform,
             String platformId,
             Coordinates coordinates,
-            BigDecimal pricePerNight,
             PropertyType propertyType
     ) {
         super();
@@ -76,8 +76,6 @@ public class Property extends BaseEntity {
         this.platform = platform;
         this.platformId = platformId;
         this.coordinates = coordinates;
-        this.pricePerNight = pricePerNight;
-        this.currency = "EUR";
         this.propertyType = propertyType;
     }
     
@@ -91,6 +89,17 @@ public class Property extends BaseEntity {
     public void setRating(double rating, int reviewCount) {
         this.rating = rating;
         this.reviewCount = reviewCount;
+        markAsUpdated();
+    }
+    
+    /**
+     * Sets property metadata (title, URLs, host info).
+     */
+    public void setMetadata(String title, String propertyUrl, String imageUrl, Boolean isSuperhost) {
+        this.title = title;
+        this.propertyUrl = propertyUrl;
+        this.imageUrl = imageUrl;
+        this.isSuperhost = isSuperhost;
         markAsUpdated();
     }
     

@@ -50,9 +50,4 @@ public interface JpaPropertyRepository extends JpaRepository<PropertyEntity, UUI
      */
     long countByLocationId(UUID locationId);
 
-    /**
-     * Calculate average price for a location
-     */
-    @Query("SELECT AVG(p.price) FROM PropertyEntity p WHERE p.locationId = :locationId")
-    BigDecimal findAveragePriceByLocationId(@Param("locationId") UUID locationId);
 }

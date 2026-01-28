@@ -49,8 +49,6 @@ public class ScrapingJobCompletedEvent implements DomainEvent {
         private final double longitude;
         private final String title;
         private final String propertyType;
-        private final java.math.BigDecimal price;
-        private final String currency;
         private final Integer bedrooms;
         private final Integer bathrooms;
         private final Integer guests;
@@ -73,8 +71,6 @@ public class ScrapingJobCompletedEvent implements DomainEvent {
                 @JsonProperty("longitude") double longitude,
                 @JsonProperty("title") String title,
                 @JsonProperty("propertyType") String propertyType,
-                @JsonProperty("price") java.math.BigDecimal price,
-                @JsonProperty("currency") String currency,
                 @JsonProperty("bedrooms") Integer bedrooms,
                 @JsonProperty("bathrooms") Integer bathrooms,
                 @JsonProperty("guests") Integer guests,
@@ -95,8 +91,6 @@ public class ScrapingJobCompletedEvent implements DomainEvent {
             this.longitude = longitude;
             this.title = title;
             this.propertyType = propertyType;
-            this.price = price;
-            this.currency = currency;
             this.bedrooms = bedrooms;
             this.bathrooms = bathrooms;
             this.guests = guests;

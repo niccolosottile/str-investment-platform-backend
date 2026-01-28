@@ -55,12 +55,6 @@ public class PropertyEntity {
     @Column(name = "property_type")
     private String propertyType;
 
-    @Column(nullable = false)
-    private BigDecimal price;
-
-    @Column(nullable = false)
-    private String currency;
-
     private Integer bedrooms;
 
     private Integer bathrooms;
@@ -74,9 +68,6 @@ public class PropertyEntity {
 
     @Column(name = "is_superhost")
     private Boolean isSuperhost;
-
-    @Column(name = "instant_book")
-    private Boolean instantBook;
 
     @Column(name = "property_url")
     private String propertyUrl;
