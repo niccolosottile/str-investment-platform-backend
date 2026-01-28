@@ -122,6 +122,8 @@ public class AnalysisResultEntity {
     public static class MarketAnalysisData {
         private Integer totalListings;
         private BigDecimal averageDailyRate;
+        private BigDecimal occupancyRate;            // Average occupancy rate (0.0-1.0)
+        private BigDecimal estimatedMonthlyRevenue;  // Estimated monthly revenue
         private String seasonality;
         private String growthTrend;
         private String competitionDensity;

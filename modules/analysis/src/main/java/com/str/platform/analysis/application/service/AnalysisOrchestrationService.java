@@ -72,15 +72,22 @@ public class AnalysisOrchestrationService {
         List<Property> properties = fetchPropertiesByLocation(locationId);
         
         if (properties.isEmpty()) {
-            log.warn("No properties found for location {}. Returning empty analysis.", locationId);
-            return createEmptyAnalysis(config);
+            log.error("No properties found for location {}", locationId);
+            throw new IllegalStateException("Cannot perform analysis: No properties available for location " + locationId);
         }
         
         // 2. Perform market analysis
         MarketAnalysis marketAnalysis = marketAnalysisService.analyzeMarket(
+            locationId,
             config.getLocation(),
             properties
         );
+        
+        if (marketAnalysis == null) {
+            log.error("Market analysis returned null for location {} - insufficient scraped data", locationId);
+            throw new IllegalStateException("Cannot perform analysis: Insufficient scraped data for location " + locationId + 
+                ". Please ensure scraping has been completed for this location.");
+        }
         
         // 3. Calculate investment metrics
         InvestmentMetrics metrics = investmentAnalysisService.calculateMetrics(
@@ -183,35 +190,6 @@ public class AnalysisOrchestrationService {
                 return property;
             })
             .toList();
-    }
-    
-    /**
-     * Create empty analysis when no data available
-     */
-    private AnalysisResult createEmptyAnalysis(InvestmentConfiguration config) {
-        MarketAnalysis emptyMarket = new MarketAnalysis(
-            0,
-            Money.euros(0),
-            1.0,
-            MarketAnalysis.GrowthTrend.STABLE,
-            MarketAnalysis.CompetitionDensity.LOW
-        );
-        
-        InvestmentMetrics emptyMetrics = new InvestmentMetrics(
-            Money.euros(0),
-            Money.euros(0),
-            Money.euros(0),
-            0.0,
-            Integer.MAX_VALUE,
-            0.0
-        );
-        
-        return new AnalysisResult(
-            config,
-            emptyMetrics,
-            emptyMarket,
-            AnalysisResult.DataQuality.LOW
-        );
     }
     
     /**

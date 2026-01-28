@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Service for analyzing market conditions.
@@ -21,6 +22,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class MarketAnalysisService {
     
+    private final PropertyDataAnalysisService propertyDataAnalysisService;
+    
     private static final double SEARCH_RADIUS_KM = 5.0; // 5km radius for market analysis
     private static final double EARTH_RADIUS_KM = 6371.0;
     
@@ -29,22 +32,47 @@ public class MarketAnalysisService {
     private static final double HIGH_DENSITY_THRESHOLD = 30.0;
     
     /**
-     * Analyze market conditions based on available properties
+     * Analyze market conditions based on available properties and scraped data.
+     * Uses PropertyDataAnalysisService to get ADR and seasonality from actual price samples.
+     * 
+     * @param locationId Location identifier for querying scraped data
+     * @param location Coordinates for spatial analysis
+     * @param nearbyProperties Properties for competition and growth analysis
+     * @return Complete market analysis
      */
     public MarketAnalysis analyzeMarket(
+            UUID locationId,
             Coordinates location,
             List<Property> nearbyProperties
     ) {
-        log.info("Analyzing market for location: {} with {} properties",
-            location, nearbyProperties.size());
+        log.info("Analyzing market for location: {} ({}) with {} properties",
+            locationId, location, nearbyProperties.size());
         
         if (nearbyProperties.isEmpty()) {
-            log.warn("No properties found for market analysis at {}", location);
-            return createEmptyAnalysis();
+            log.error("No properties found for market analysis at location {}", locationId);
+            return null;
         }
         
-        // Calculate average daily rate
-        Money averageDailyRate = calculateAverageDailyRate(nearbyProperties);
+        // Calculate average daily rate from scraped price samples
+        Money averageDailyRate = propertyDataAnalysisService.calculateAverageDailyRate(locationId);
+        if (averageDailyRate == null) {
+            log.error("No price sample data available for location {}, cannot perform analysis", locationId);
+            return null;
+        }
+        
+        // Calculate occupancy rate from availability calendar data
+        BigDecimal occupancyRate = propertyDataAnalysisService.calculateOccupancy(locationId);
+        if (occupancyRate == null) {
+            log.error("No availability data for location {}, cannot perform analysis", locationId);
+            return null;
+        }
+        
+        // Calculate estimated monthly revenue
+        Money monthlyRevenue = propertyDataAnalysisService.calculateMonthlyRevenue(locationId);
+        if (monthlyRevenue == null) {
+            log.error("Cannot calculate monthly revenue for location {}", locationId);
+            return null;
+        }
         
         // Determine competition density
         MarketAnalysis.CompetitionDensity competitionDensity = 
@@ -54,52 +82,24 @@ public class MarketAnalysisService {
         MarketAnalysis.GrowthTrend growthTrend = 
             analyzeGrowthTrend(nearbyProperties);
         
-        // Calculate seasonality index (simplified - would need historical data)
-        double seasonalityIndex = calculateSeasonalityIndex();
+        // Calculate seasonality index from scraped price samples
+        double seasonalityIndex = propertyDataAnalysisService.calculateSeasonalityIndex(locationId);
         
-        log.info("Market analysis complete: {} listings, €{} avg rate, {} competition",
-            nearbyProperties.size(), averageDailyRate.getAmount(), competitionDensity);
+        log.info("Market analysis complete: {} listings, €{} ADR, {}% occupancy, €{} monthly revenue, seasonality {}, {} competition",
+            nearbyProperties.size(), averageDailyRate.getAmount(), 
+            String.format("%.1f", occupancyRate.multiply(BigDecimal.valueOf(100))),
+            monthlyRevenue.getAmount(),
+            String.format("%.2f", seasonalityIndex), competitionDensity);
         
         return new MarketAnalysis(
             nearbyProperties.size(),
             averageDailyRate,
+            occupancyRate,
+            monthlyRevenue,
             seasonalityIndex,
             growthTrend,
             competitionDensity
         );
-    }
-    
-    /**
-     * Calculate average daily rate from properties
-     */
-    private Money calculateAverageDailyRate(List<Property> properties) {
-        // Filter out extreme outliers
-        List<BigDecimal> prices = properties.stream()
-            .map(Property::getPricePerNight)
-            .sorted()
-            .toList();
-        
-        // Remove top and bottom 10% as outliers
-        int removeCount = (int) (prices.size() * 0.1);
-        List<BigDecimal> filteredPrices = prices.subList(
-            removeCount,
-            prices.size() - removeCount
-        );
-        
-        if (filteredPrices.isEmpty()) {
-            filteredPrices = prices; // Fallback if too few properties
-        }
-        
-        BigDecimal sum = filteredPrices.stream()
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
-        
-        BigDecimal average = sum.divide(
-            BigDecimal.valueOf(filteredPrices.size()),
-            2,
-            RoundingMode.HALF_UP
-        );
-        
-        return new Money(average, Money.Currency.EUR);
     }
     
     /**
@@ -178,34 +178,7 @@ public class MarketAnalysisService {
         }
     }
     
-    /**
-     * Calculate seasonality index
-     * 
-     * Note: This is a placeholder. Real implementation would:
-     * - Use historical booking data
-     * - Compare current month to annual average
-     * - Account for local events and holidays
-     * - Track seasonal pricing variations
-     */
-    private double calculateSeasonalityIndex() {
-        // Return 1.0 (neutral) as default
-        // >1.0 = High season, <1.0 = Low season
-        return 1.0;
-    }
-    
-    /**
-     * Create empty analysis when no properties available
-     */
-    private MarketAnalysis createEmptyAnalysis() {
-        return new MarketAnalysis(
-            0,
-            Money.euros(0),
-            1.0,
-            MarketAnalysis.GrowthTrend.STABLE,
-            MarketAnalysis.CompetitionDensity.LOW
-        );
-    }
-    
+
     /**
      * Calculate distance between two coordinates (Haversine formula)
      */

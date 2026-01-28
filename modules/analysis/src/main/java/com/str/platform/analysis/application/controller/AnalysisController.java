@@ -2,6 +2,8 @@ package com.str.platform.analysis.application.controller;
 
 import com.str.platform.analysis.application.dto.AnalysisRequest;
 import com.str.platform.analysis.application.dto.AnalysisResponse;
+import com.str.platform.analysis.application.dto.RefreshStatusResponse;
+import com.str.platform.analysis.application.mapper.AnalysisResponseMapper;
 import com.str.platform.analysis.application.service.AnalysisOrchestrationService;
 import com.str.platform.analysis.domain.model.*;
 import io.swagger.v3.oas.annotations.Operation;
@@ -28,6 +30,7 @@ import java.util.UUID;
 public class AnalysisController {
     
     private final AnalysisOrchestrationService analysisService;
+    private final AnalysisResponseMapper responseMapper;
     
     /**
      * Perform investment analysis for an existing Location.
@@ -73,7 +76,8 @@ public class AnalysisController {
             goal,
             request.acceptsRenovation() != null && request.acceptsRenovation()
         );
-        AnalysisResponse response = mapToResponse(result);
+        
+        AnalysisResponse response = responseMapper.toResponse(result);
 
         log.info("Analysis completed: ID={}, ROI={}%, Payback={} months",
             response.id(),
@@ -105,7 +109,7 @@ public class AnalysisController {
         log.info("Fetching analysis: {}", id);
         
         AnalysisResult result = analysisService.getAnalysis(id);
-        AnalysisResponse response = mapToResponse(result);
+        AnalysisResponse response = responseMapper.toResponse(result);
         
         return ResponseEntity.ok(response);
     }
@@ -128,60 +132,4 @@ public class AnalysisController {
         boolean needsRefresh = analysisService.needsRefresh(id);
         return ResponseEntity.ok(new RefreshStatusResponse(needsRefresh));
     }
-    
-    /**
-     * Map domain model to response DTO
-     */
-    private AnalysisResponse mapToResponse(AnalysisResult result) {
-        return new AnalysisResponse(
-            result.getId().toString(),
-            new AnalysisResponse.LocationDto(
-                result.getConfiguration().getLocation().getLatitude(),
-                result.getConfiguration().getLocation().getLongitude()
-            ),
-            new AnalysisResponse.InvestmentConfigDto(
-                result.getConfiguration().getInvestmentType().name(),
-                result.getConfiguration().getBudget().getAmount(),
-                result.getConfiguration().getBudget().getCurrency().name(),
-                result.getConfiguration().getPropertyType().name(),
-                result.getConfiguration().getGoal().name(),
-                result.getConfiguration().isAcceptsRenovation()
-            ),
-            new AnalysisResponse.InvestmentMetricsDto(
-                mapMoney(result.getMetrics().getMonthlyRevenueConservative()),
-                mapMoney(result.getMetrics().getMonthlyRevenueExpected()),
-                mapMoney(result.getMetrics().getMonthlyRevenueOptimistic()),
-                result.getMetrics().getAnnualROI(),
-                result.getMetrics().getPaybackPeriodMonths(),
-                result.getMetrics().getOccupancyRate(),
-                mapMoney(result.getMetrics().getAnnualRevenue()),
-                result.getMetrics().isViableInvestment()
-            ),
-            new AnalysisResponse.MarketAnalysisDto(
-                result.getMarketAnalysis().getTotalListings(),
-                mapMoney(result.getMarketAnalysis().getAverageDailyRate()),
-                result.getMarketAnalysis().getSeasonalityIndex(),
-                result.getMarketAnalysis().getGrowthTrend().name(),
-                result.getMarketAnalysis().getCompetitionDensity().name()
-            ),
-            result.getDataQuality().name(),
-            result.isCached(),
-            result.getCreatedAt().atZone(java.time.ZoneId.systemDefault()).toInstant()
-        );
-    }
-    
-    /**
-     * Map Money domain object to DTO
-     */
-    private AnalysisResponse.MoneyDto mapMoney(Money money) {
-        return new AnalysisResponse.MoneyDto(
-            money.getAmount(),
-            money.getCurrency().name()
-        );
-    }
-    
-    /**
-     * Refresh status response
-     */
-    public record RefreshStatusResponse(boolean needsRefresh) {}
 }

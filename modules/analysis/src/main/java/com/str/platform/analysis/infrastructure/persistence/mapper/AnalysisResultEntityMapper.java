@@ -122,6 +122,8 @@ public class AnalysisResultEntityMapper {
         return new MarketAnalysis(
             data.getTotalListings(),
             new Money(data.getAverageDailyRate(), Money.Currency.EUR),
+            data.getOccupancyRate(),  // Now required
+            new Money(data.getEstimatedMonthlyRevenue(), Money.Currency.EUR), // Now required
             Double.parseDouble(data.getSeasonality()), // Convert String to double
             MarketAnalysis.GrowthTrend.valueOf(data.getGrowthTrend()),
             MarketAnalysis.CompetitionDensity.valueOf(data.getCompetitionDensity())
@@ -132,6 +134,8 @@ public class AnalysisResultEntityMapper {
         AnalysisResultEntity.MarketAnalysisData data = new AnalysisResultEntity.MarketAnalysisData();
         data.setTotalListings(domain.getTotalListings());
         data.setAverageDailyRate(domain.getAverageDailyRate().getAmount());
+        data.setOccupancyRate(domain.getAverageOccupancyRate());
+        data.setEstimatedMonthlyRevenue(domain.getEstimatedMonthlyRevenue().getAmount());
         data.setSeasonality(String.valueOf(domain.getSeasonalityIndex())); // Convert double to String
         data.setGrowthTrend(domain.getGrowthTrend().name());
         data.setCompetitionDensity(domain.getCompetitionDensity().name()); // Convert enum to String
