@@ -8,7 +8,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
 /**
- * Async configuration using Java 21 Virtual Threads.
+ * Async configuration using virtual threads.
  * Allows handling thousands of concurrent tasks with minimal overhead.
  */
 @Configuration
@@ -17,7 +17,6 @@ public class AsyncConfig {
     
     @Bean(name = "taskExecutor")
     public Executor taskExecutor() {
-        // Virtual threads - can handle 1000s of concurrent operations
         return Executors.newVirtualThreadPerTaskExecutor();
     }
 }

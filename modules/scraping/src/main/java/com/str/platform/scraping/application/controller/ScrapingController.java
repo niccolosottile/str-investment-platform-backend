@@ -179,10 +179,8 @@ public class ScrapingController {
     private ScrapingJobResponse toResponse(ScrapingJob job) {
         return new ScrapingJobResponse(
             job.getId(),
-            job.getLocation().getLatitude(),
-            job.getLocation().getLongitude(),
+            job.getLocationId(),
             job.getPlatform().name(),
-            job.getRadiusKm(),
             job.getStatus().name(),
             job.getPropertiesFound(),
             job.getStartedAt() != null ? job.getStartedAt().atZone(java.time.ZoneId.systemDefault()).toInstant() : null,
@@ -210,17 +208,11 @@ public class ScrapingController {
         @Schema(description = "Job ID")
         UUID id,
         
-        @Schema(description = "Latitude")
-        Double latitude,
-        
-        @Schema(description = "Longitude")
-        Double longitude,
+        @Schema(description = "Location ID")
+        UUID locationId,
         
         @Schema(description = "Platform")
         String platform,
-        
-        @Schema(description = "Search radius in kilometers")
-        Integer radiusKm,
         
         @Schema(description = "Job status")
         String status,

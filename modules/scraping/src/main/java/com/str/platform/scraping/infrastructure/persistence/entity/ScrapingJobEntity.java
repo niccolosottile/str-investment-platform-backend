@@ -8,7 +8,6 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -34,18 +33,9 @@ public class ScrapingJobEntity {
     @Column(name = "location_id", nullable = false)
     private UUID locationId;
 
-    @Column(nullable = false, precision = 10, scale = 8)
-    private BigDecimal latitude;
-
-    @Column(nullable = false, precision = 11, scale = 8)
-    private BigDecimal longitude;
-
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
     private Platform platform;
-
-    @Column(name = "radius_km", nullable = false)
-    private Integer radiusKm;
 
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)

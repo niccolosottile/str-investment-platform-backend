@@ -11,6 +11,7 @@ import com.str.platform.shared.domain.exception.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,12 +33,16 @@ public class AnalysisOrchestrationService {
     private final JpaAnalysisResultRepository analysisResultRepository;
     private final AnalysisResultEntityMapper analysisResultMapper;
     private final LocationService locationService;
+    private final RedisTemplate<String, Object> redisTemplate;
     
     /**
      * Perform complete investment analysis for an existing Location.
+     * Results are cached per location + configuration parameters.
+     * Cache key includes all parameters that affect the analysis result.
      */
     @Transactional
-    @Cacheable(value = "analysisResults", key = "#locationId.toString() + '-' + #budget.amount")
+    @Cacheable(value = "analysisResults", 
+               key = "#locationId + '-' + #investmentType + '-' + #budget.amount + '-' + #propertyType + '-' + #goal + '-' + #acceptsRenovation")
     public AnalysisResult performAnalysisForLocation(
             UUID locationId,
             InvestmentConfiguration.InvestmentType investmentType,
@@ -237,5 +242,36 @@ public class AnalysisOrchestrationService {
             case "SHARED_ROOM" -> Property.PropertyType.SHARED_ROOM;
             default -> Property.PropertyType.ENTIRE_APARTMENT; // Default fallback
         };
+    }
+    
+    /**
+     * Evict all cached analysis results for a specific location.
+     * Called when new property data becomes available for a location.
+     * 
+     * Uses Redis pattern matching to find all cache entries starting with locationId,
+     * regardless of other parameters (budget, type, goal, etc).
+     * 
+     * Cache keys follow pattern: "analysisResults::{locationId}-{params}"
+     */
+    public void evictAnalysisCacheForLocation(UUID locationId) {
+        try {
+            // Spring's RedisCacheManager uses "cacheName::key" format
+            // Pattern matches all entries for this location regardless of parameters
+            String pattern = "analysisResults::" + locationId.toString() + "-*";
+            
+            // Use pattern matching to find all keys for this location
+            var keys = redisTemplate.keys(pattern);
+            
+            if (keys != null && !keys.isEmpty()) {
+                Long deleted = redisTemplate.delete(keys);
+                log.info("Evicted {} analysis cache entries for locationId={}", deleted, locationId);
+            } else {
+                log.debug("No analysis cache entries found for locationId={}", locationId);
+            }
+        } catch (Exception e) {
+            // Log but don't fail - cache eviction is non-critical
+            // Stale cache entries will expire naturally via TTL
+            log.error("Failed to evict analysis cache for locationId={}: {}", locationId, e.getMessage());
+        }
     }
 }

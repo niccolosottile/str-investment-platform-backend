@@ -1,11 +1,11 @@
 package com.str.platform.scraping.domain.model;
 
-import com.str.platform.location.domain.model.Coordinates;
 import com.str.platform.shared.domain.common.BaseEntity;
 import lombok.Getter;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * Scraping Job aggregate root.
@@ -14,9 +14,8 @@ import java.time.LocalDateTime;
 @Getter
 public class ScrapingJob extends BaseEntity {
     
-    private Coordinates location;
+    private UUID locationId;
     private Platform platform;
-    private int radiusKm;
     private JobStatus status;
     private LocalDateTime startedAt;
     private LocalDateTime completedAt;
@@ -40,11 +39,16 @@ public class ScrapingJob extends BaseEntity {
         super();
     }
     
-    public ScrapingJob(Coordinates location, Platform platform, int radiusKm) {
+    public ScrapingJob(UUID locationId, Platform platform) {
         super();
-        this.location = location;
+        if (locationId == null) {
+            throw new IllegalArgumentException("Location ID cannot be null");
+        }
+        if (platform == null) {
+            throw new IllegalArgumentException("Platform cannot be null");
+        }
+        this.locationId = locationId;
         this.platform = platform;
-        this.radiusKm = radiusKm;
         this.status = JobStatus.PENDING;
     }
     

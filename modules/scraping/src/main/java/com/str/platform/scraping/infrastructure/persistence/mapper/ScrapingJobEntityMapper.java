@@ -1,11 +1,9 @@
 package com.str.platform.scraping.infrastructure.persistence.mapper;
 
-import com.str.platform.location.domain.model.Coordinates;
 import com.str.platform.scraping.domain.model.ScrapingJob;
 import com.str.platform.scraping.infrastructure.persistence.entity.ScrapingJobEntity;
 import org.springframework.stereotype.Component;
 
-import java.math.BigDecimal;
 import java.time.ZoneId;
 
 /**
@@ -22,15 +20,9 @@ public class ScrapingJobEntityMapper {
             return null;
         }
 
-        Coordinates location = new Coordinates(
-            entity.getLatitude().doubleValue(),
-            entity.getLongitude().doubleValue()
-        );
-
         ScrapingJob job = new ScrapingJob(
-            location,
-            mapPlatformToDomain(entity.getPlatform()),
-            entity.getRadiusKm()
+            entity.getLocationId(),
+            mapPlatformToDomain(entity.getPlatform())
         );
 
         // Set ID using reflection since BaseEntity doesn't expose setter
@@ -66,10 +58,8 @@ public class ScrapingJobEntityMapper {
 
         return ScrapingJobEntity.builder()
             .id(domain.getId())
-            .latitude(BigDecimal.valueOf(domain.getLocation().getLatitude()))
-            .longitude(BigDecimal.valueOf(domain.getLocation().getLongitude()))
+            .locationId(domain.getLocationId())
             .platform(mapPlatformToEntity(domain.getPlatform()))
-            .radiusKm(domain.getRadiusKm())
             .status(mapStatusToEntity(domain.getStatus()))
             .propertiesFound(domain.getPropertiesFound())
             .startedAt(domain.getStartedAt() != null ? domain.getStartedAt().atZone(ZoneId.systemDefault()).toInstant() : null)

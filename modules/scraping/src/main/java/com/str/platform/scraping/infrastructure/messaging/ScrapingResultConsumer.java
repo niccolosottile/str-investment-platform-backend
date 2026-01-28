@@ -6,11 +6,12 @@ import com.str.platform.scraping.infrastructure.persistence.entity.PropertyEntit
 import com.str.platform.scraping.infrastructure.persistence.entity.ScrapingJobEntity;
 import com.str.platform.scraping.infrastructure.persistence.repository.JpaPropertyRepository;
 import com.str.platform.scraping.infrastructure.persistence.repository.JpaScrapingJobRepository;
+import com.str.platform.shared.event.ScrapingDataUpdatedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitHandler;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
-import org.springframework.cache.CacheManager;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,7 +32,7 @@ public class ScrapingResultConsumer {
     
     private final JpaScrapingJobRepository scrapingJobRepository;
     private final JpaPropertyRepository propertyRepository;
-    private final CacheManager cacheManager;
+    private final ApplicationEventPublisher eventPublisher;
     
     public static final String SCRAPING_RESULT_QUEUE = "str.scraping.result.queue";
     
@@ -93,8 +94,10 @@ public class ScrapingResultConsumer {
             
             log.info("Saved {} properties for job: {}", savedCount, event.getJobId());
             
-            // Invalidate related caches
-            invalidateCaches(jobEntity.getLatitude().doubleValue(), jobEntity.getLongitude().doubleValue());
+            // Publish domain event for cache invalidation (handled by analysis module)
+            eventPublisher.publishEvent(
+                new ScrapingDataUpdatedEvent(jobEntity.getLocationId(), savedCount)
+            );
             
         } catch (Exception e) {
             log.error("Failed to process scraping job completed event: jobId={}", 
@@ -176,30 +179,5 @@ public class ScrapingResultConsumer {
         entity.setIsSuperhost(propData.getIsSuperhost());
         entity.setImageUrl(propData.getImageUrl());
         entity.setPropertyUrl(propData.getPropertyUrl());
-    }
-    
-    /**
-     * Invalidate caches related to the scraped location
-     */
-    private void invalidateCaches(double lat, double lng) {
-        try {
-            // Invalidate analysis results cache for this location
-            var analysisCache = cacheManager.getCache("analysisResults");
-            if (analysisCache != null) {
-                analysisCache.clear();
-                log.debug("Cleared analysisResults cache");
-            }
-            
-            // Invalidate nearby locations cache
-            var nearbyCache = cacheManager.getCache("nearbyLocations");
-            if (nearbyCache != null) {
-                nearbyCache.clear();
-                log.debug("Cleared nearbyLocations cache");
-            }
-            
-        } catch (Exception e) {
-            log.warn("Failed to invalidate caches", e);
-            // Non-critical, don't fail the event processing
-        }
     }
 }
