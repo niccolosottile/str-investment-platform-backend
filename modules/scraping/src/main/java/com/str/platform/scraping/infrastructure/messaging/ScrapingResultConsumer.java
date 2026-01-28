@@ -2,9 +2,15 @@ package com.str.platform.scraping.infrastructure.messaging;
 
 import com.str.platform.scraping.domain.event.ScrapingJobCompletedEvent;
 import com.str.platform.scraping.domain.event.ScrapingJobFailedEvent;
+import com.str.platform.scraping.domain.model.PropertyAvailability;
+import com.str.platform.scraping.domain.model.PriceSample;
+import com.str.platform.scraping.infrastructure.persistence.entity.PropertyAvailabilityEntity;
 import com.str.platform.scraping.infrastructure.persistence.entity.PropertyEntity;
+import com.str.platform.scraping.infrastructure.persistence.entity.PriceSampleEntity;
 import com.str.platform.scraping.infrastructure.persistence.entity.ScrapingJobEntity;
+import com.str.platform.scraping.infrastructure.persistence.repository.JpaPropertyAvailabilityRepository;
 import com.str.platform.scraping.infrastructure.persistence.repository.JpaPropertyRepository;
+import com.str.platform.scraping.infrastructure.persistence.repository.JpaPriceSampleRepository;
 import com.str.platform.scraping.infrastructure.persistence.repository.JpaScrapingJobRepository;
 import com.str.platform.shared.event.ScrapingDataUpdatedEvent;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +21,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.UUID;
 
 /**
@@ -32,13 +39,15 @@ public class ScrapingResultConsumer {
     
     private final JpaScrapingJobRepository scrapingJobRepository;
     private final JpaPropertyRepository propertyRepository;
+    private final JpaPropertyAvailabilityRepository availabilityRepository;
+    private final JpaPriceSampleRepository priceSampleRepository;
     private final ApplicationEventPublisher eventPublisher;
     
     public static final String SCRAPING_RESULT_QUEUE = "str.scraping.result.queue";
     
     /**
      * Handle scraping job completed event from Python worker.
-     * Updates job status and saves scraped properties.
+     * Updates job status and saves scraped properties with availability and price data.
      */
     @RabbitHandler
     @Transactional
@@ -63,8 +72,11 @@ public class ScrapingResultConsumer {
                 throw new IllegalStateException("Scraping job missing locationId: " + jobEntity.getId());
             }
             
-            // Save or update properties
+            // Save or update properties with availability and price data
             int savedCount = 0;
+            int availabilitySaved = 0;
+            int priceSamplesSaved = 0;
+            
             for (ScrapingJobCompletedEvent.PropertyData propData : event.getProperties()) {
                 try {
                     // Check if property already exists
@@ -73,18 +85,33 @@ public class ScrapingResultConsumer {
                         .findByPlatformAndPlatformPropertyId(platform, propData.getPlatformId())
                         .orElse(null);
                     
+                    PropertyEntity property;
                     if (existingProperty != null) {
                         // Update existing property
                         updatePropertyEntity(existingProperty, propData, locationId);
-                        propertyRepository.save(existingProperty);
+                        property = propertyRepository.save(existingProperty);
                         log.debug("Updated existing property: {}", propData.getPlatformId());
                     } else {
                         // Create new property
                         PropertyEntity newProperty = createPropertyEntity(propData, locationId);
-                        propertyRepository.save(newProperty);
+                        property = propertyRepository.save(newProperty);
                         log.debug("Created new property: {}", propData.getPlatformId());
                     }
                     savedCount++;
+                    
+                    // Save availability calendar (for FULL_PROFILE jobs)
+                    if (propData.getAvailability() != null && !propData.getAvailability().isEmpty()) {
+                        int saved = saveAvailabilityData(property.getId(), propData.getAvailability());
+                        availabilitySaved += saved;
+                        log.debug("Saved {} availability records for property: {}", saved, propData.getPlatformId());
+                    }
+                    
+                    // Save price sample (for PRICE_SAMPLE jobs)
+                    if (propData.getPriceSample() != null) {
+                        savePriceSample(property.getId(), propData.getPriceSample());
+                        priceSamplesSaved++;
+                        log.debug("Saved price sample for property: {}", propData.getPlatformId());
+                    }
                     
                 } catch (Exception e) {
                     log.error("Failed to save property: {}", propData.getPlatformId(), e);
@@ -92,7 +119,8 @@ public class ScrapingResultConsumer {
                 }
             }
             
-            log.info("Saved {} properties for job: {}", savedCount, event.getJobId());
+            log.info("Saved {} properties, {} availability records, {} price samples for job: {}", 
+                savedCount, availabilitySaved, priceSamplesSaved, event.getJobId());
             
             // Publish domain event for cache invalidation (handled by analysis module)
             eventPublisher.publishEvent(
@@ -179,5 +207,71 @@ public class ScrapingResultConsumer {
         entity.setIsSuperhost(propData.getIsSuperhost());
         entity.setImageUrl(propData.getImageUrl());
         entity.setPropertyUrl(propData.getPropertyUrl());
+    }
+    
+    /**
+     * Save availability calendar data for a property.
+     * Creates one record per month with aggregated availability statistics.
+     * 
+     * @param propertyId The property UUID
+     * @param availabilityList List of monthly availability data from scraper
+     * @return Number of records saved
+     */
+    private int saveAvailabilityData(UUID propertyId, java.util.List<PropertyAvailability> availabilityList) {
+        int savedCount = 0;
+        Instant scrapedAt = Instant.now();
+        
+        for (PropertyAvailability availability : availabilityList) {
+            try {
+                PropertyAvailabilityEntity entity = PropertyAvailabilityEntity.builder()
+                    .propertyId(propertyId)
+                    .month(availability.getMonth().toString()) // Format: YYYY-MM
+                    .totalDays(availability.getTotalDays())
+                    .availableDays(availability.getAvailableDays())
+                    .bookedDays(availability.getBookedDays())
+                    .blockedDays(availability.getBlockedDays())
+                    .estimatedOccupancy(java.math.BigDecimal.valueOf(availability.getEstimatedOccupancy()))
+                    .scrapedAt(scrapedAt)
+                    .build();
+                
+                availabilityRepository.save(entity);
+                savedCount++;
+                
+            } catch (Exception e) {
+                log.error("Failed to save availability record for property: {}, month: {}", 
+                    propertyId, availability.getMonth(), e);
+                // Continue with next record
+            }
+        }
+        
+        return savedCount;
+    }
+    
+    /**
+     * Save price sample data for a property.
+     * Each sample represents pricing for a specific date range and stay duration.
+     * 
+     * @param propertyId The property UUID
+     * @param priceSample The price sample from scraper
+     */
+    private void savePriceSample(UUID propertyId, PriceSample priceSample) {
+        try {
+            PriceSampleEntity entity = PriceSampleEntity.builder()
+                .propertyId(propertyId)
+                .price(priceSample.getPrice())
+                .currency(priceSample.getCurrency())
+                .searchDateStart(priceSample.getSearchDateStart())
+                .searchDateEnd(priceSample.getSearchDateEnd())
+                .numberOfNights(priceSample.getNumberOfNights())
+                .sampledAt(priceSample.getSampledAt())
+                .build();
+            
+            priceSampleRepository.save(entity);
+            
+        } catch (Exception e) {
+            log.error("Failed to save price sample for property: {}, dates: {} to {}", 
+                propertyId, priceSample.getSearchDateStart(), priceSample.getSearchDateEnd(), e);
+            throw e; // Re-throw to ensure transaction rollback
+        }
     }
 }
