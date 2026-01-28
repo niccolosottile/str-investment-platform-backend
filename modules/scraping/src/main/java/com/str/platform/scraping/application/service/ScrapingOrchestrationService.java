@@ -393,6 +393,15 @@ public class ScrapingOrchestrationService {
     }
     
     /**
+     * Get job by ID
+     */
+    public ScrapingJob getJobById(UUID jobId) {
+        return scrapingJobRepository.findById(jobId)
+            .map(scrapingJobMapper::toDomain)
+            .orElse(null);
+    }
+    
+    /**
      * Handle timed-out jobs (mark as failed after specified minutes)
      */
     @Transactional

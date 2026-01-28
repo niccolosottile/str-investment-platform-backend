@@ -1,9 +1,12 @@
 package com.str.platform.scraping.application.controller;
 
 import com.str.platform.scraping.application.dto.BatchScrapingJobResponse;
+import com.str.platform.scraping.application.dto.BatchScrapingRequest;
+import com.str.platform.scraping.application.dto.BatchScrapingStatusResponse;
 import com.str.platform.scraping.application.dto.ScrapingJobForLocationRequest;
 import com.str.platform.scraping.application.dto.ScrapingJobResponse;
 import com.str.platform.scraping.application.mapper.ScrapingJobDtoMapper;
+import com.str.platform.scraping.application.service.BatchScrapingService;
 import com.str.platform.scraping.application.service.ScrapingOrchestrationService;
 import com.str.platform.scraping.domain.model.ScrapingJob;
 import io.swagger.v3.oas.annotations.Operation;
@@ -32,6 +35,7 @@ import java.util.stream.Collectors;
 public class ScrapingController {
     
     private final ScrapingOrchestrationService orchestrationService;
+    private final BatchScrapingService batchScrapingService;
     
     /**
      * Create a new scraping job for an existing Location.
@@ -82,81 +86,81 @@ public class ScrapingController {
             responses
         ));
     }
+
+    /**
+     * Orchestrate comprehensive location analysis (deep scrape + price sampling).
+     */
+    @PostMapping("/location/{locationId}/orchestrate")
+    @Operation(
+        summary = "Orchestrate comprehensive location analysis",
+        description = "Creates FULL_PROFILE jobs for all platforms plus 36 PRICE_SAMPLE jobs (12 months × 3 platforms)"
+    )
+    @ApiResponse(responseCode = "200", description = "Orchestration completed")
+    public ResponseEntity<BatchScrapingJobResponse> orchestrateLocationAnalysis(
+            @Parameter(description = "Location ID") @PathVariable UUID locationId
+    ) {
+        log.info("Orchestrating comprehensive analysis for locationId={}", locationId);
+
+        List<ScrapingJob> jobs = orchestrationService.orchestrateLocationAnalysis(locationId);
+
+        List<ScrapingJobResponse> responses = jobs.stream()
+            .map(ScrapingJobDtoMapper::toResponse)
+            .collect(Collectors.toList());
+
+        return ResponseEntity.ok(new BatchScrapingJobResponse(
+            responses.size(),
+            responses
+        ));
+    }
     
     /**
-     * Get scraping job by ID
+     * Get job status by ID
      */
-    @GetMapping("/{id}")
+    @GetMapping("/{jobId}")
     @Operation(
-        summary = "Get scraping job",
-        description = "Retrieves a scraping job by ID with current status"
+        summary = "Get job status",
+        description = "Retrieves the current status of a scraping job"
     )
     @ApiResponse(responseCode = "200", description = "Job found")
     @ApiResponse(responseCode = "404", description = "Job not found")
-    public ResponseEntity<ScrapingJobResponse> getScrapingJob(
-            @Parameter(description = "Job ID") @PathVariable UUID id
+    public ResponseEntity<ScrapingJobResponse> getJobStatus(
+            @Parameter(description = "Job ID") @PathVariable UUID jobId
     ) {
-        ScrapingJob job = orchestrationService.getScrapingJob(id);
+        ScrapingJob job = orchestrationService.getJobById(jobId);
+        
+        if (job == null) {
+            return ResponseEntity.notFound().build();
+        }
+        
         return ResponseEntity.ok(ScrapingJobDtoMapper.toResponse(job));
     }
-    
-    /**
-     * Get scraping jobs for a specific location
-     */
-    @GetMapping("/location/{locationId}")
-    @Operation(
-        summary = "Get scraping jobs for location",
-        description = "Retrieves scraping jobs for the specified location"
-    )
-    @ApiResponse(responseCode = "200", description = "Jobs retrieved successfully")
-    @ApiResponse(responseCode = "404", description = "Location not found")
-    public ResponseEntity<List<ScrapingJobResponse>> getJobsByLocation(
-            @Parameter(description = "Location ID") @PathVariable UUID locationId
-    ) {
-        List<ScrapingJob> jobs = orchestrationService.getScrapingJobsByLocation(locationId);
-        
-        List<ScrapingJobResponse> responses = jobs.stream()
-            .map(ScrapingJobDtoMapper::toResponse)
-            .collect(Collectors.toList());
-        
-        return ResponseEntity.ok(responses);
-    }
-    
+
     /**
      * Retry a failed scraping job
      */
-    @PostMapping("/{id}/retry")
+    @PostMapping("/{jobId}/retry")
     @Operation(
-        summary = "Retry scraping job",
-        description = "Retries a failed scraping job. Only failed jobs can be retried."
+        summary = "Retry failed job",
+        description = "Resets a failed job to pending and republishes it to the queue"
     )
-    @ApiResponse(responseCode = "200", description = "Job retry initiated")
-    @ApiResponse(responseCode = "400", description = "Job cannot be retried")
+    @ApiResponse(responseCode = "200", description = "Job retried successfully")
     @ApiResponse(responseCode = "404", description = "Job not found")
-    public ResponseEntity<ScrapingJobResponse> retryScrapingJob(
-            @Parameter(description = "Job ID") @PathVariable UUID id
+    @ApiResponse(responseCode = "400", description = "Job is not in failed status")
+    public ResponseEntity<ScrapingJobResponse> retryJob(
+            @Parameter(description = "Job ID") @PathVariable UUID jobId
     ) {
-        log.info("Retrying scraping job: {}", id);
-        ScrapingJob job = orchestrationService.retryScrapingJob(id);
-        return ResponseEntity.ok(ScrapingJobDtoMapper.toResponse(job));
-    }
-    
-    /**
-     * Get pending jobs (monitoring endpoint)
-     */
-    @GetMapping("/status/pending")
-    @Operation(
-        summary = "Get pending jobs",
-        description = "Lists all jobs waiting to be processed"
-    )
-    public ResponseEntity<List<ScrapingJobResponse>> getPendingJobs() {
-        List<ScrapingJob> jobs = orchestrationService.getPendingJobs();
-        
-        List<ScrapingJobResponse> responses = jobs.stream()
-            .map(ScrapingJobDtoMapper::toResponse)
-            .collect(Collectors.toList());
-        
-        return ResponseEntity.ok(responses);
+        try {
+            ScrapingJob retriedJob = orchestrationService.retryScrapingJob(jobId);
+            return ResponseEntity.ok(ScrapingJobDtoMapper.toResponse(retriedJob));
+            
+        } catch (IllegalArgumentException e) {
+            log.warn("Job not found for retry: {}", jobId);
+            return ResponseEntity.notFound().build();
+            
+        } catch (IllegalStateException e) {
+            log.warn("Cannot retry job {}: {}", jobId, e.getMessage());
+            return ResponseEntity.badRequest().build();
+        }
     }
     
     /**
@@ -175,5 +179,44 @@ public class ScrapingController {
             .collect(Collectors.toList());
         
         return ResponseEntity.ok(responses);
+    }
+    
+    /**
+     * Start batch scraping for multiple locations
+     */
+    @PostMapping("/batch/start")
+    @Operation(
+        summary = "Start batch scraping",
+        description = "Initiates batch scraping for multiple locations based on strategy (ALL_LOCATIONS or STALE_ONLY)"
+    )
+    @ApiResponse(responseCode = "200", description = "Batch scraping started")
+    @ApiResponse(responseCode = "400", description = "Invalid request or batch already running")
+    public ResponseEntity<UUID> startBatchScraping(
+            @Valid @RequestBody BatchScrapingRequest request
+    ) {
+        log.info("Starting batch scraping: strategy={}, delayMinutes={}", 
+            request.strategy(), request.delayMinutes());
+        
+        try {
+            UUID batchId = batchScrapingService.scheduleBatchRefresh(request);
+            return ResponseEntity.ok(batchId);
+            
+        } catch (IllegalStateException | IllegalArgumentException e) {
+            log.warn("Failed to start batch scraping: {}", e.getMessage());
+            return ResponseEntity.badRequest().build();
+        }
+    }
+    
+    /**
+     * Get batch scraping status
+     */
+    @GetMapping("/batch/status")
+    @Operation(
+        summary = "Get batch scraping status",
+        description = "Returns the current status of batch scraping operation"
+    )
+    public ResponseEntity<BatchScrapingStatusResponse> getBatchStatus() {
+        BatchScrapingStatusResponse status = batchScrapingService.getBatchProgress();
+        return ResponseEntity.ok(status);
     }
 }

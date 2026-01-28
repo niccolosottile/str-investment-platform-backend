@@ -58,6 +58,19 @@ server:
 mapbox:
   access-token: ${MAPBOX_ACCESS_TOKEN:your_mapbox_token_here}
 
+# Scraping configuration
+scraping:
+  scheduler:
+    enabled: false  # Set to true to enable timeout monitoring
+
+# Batch scraping configuration
+batch:
+  scraping:
+    delay-minutes: 10
+    stale-threshold-days: 30
+    auto-schedule:
+      enabled: false  # Set to true to enable monthly automatic refresh
+
 resilience4j:
   ratelimiter:
     instances:

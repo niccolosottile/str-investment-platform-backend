@@ -49,22 +49,4 @@ public class ScrapingJobScheduler {
             log.error("Error while checking for timed-out jobs", e);
         }
     }
-    
-    /**
-     * Periodic data refresh (optional - enable when needed).
-     * Uncomment and configure to automatically refresh location data.
-     */
-    // @Scheduled(cron = "0 0 2 * * ?") // Run daily at 2 AM
-    // public void refreshStaleLocationData() {
-    //     log.info("Running periodic location data refresh");
-    //     
-    //     try {
-    //         // Query locations that haven't been updated in X days
-    //         // For each location, create scraping jobs for all platforms
-    //         // orchestrationService.createScrapingJobsForAllPlatforms(coordinates);
-    //         
-    //     } catch (Exception e) {
-    //         log.error("Error during periodic data refresh", e);
-    //     }
-    // }
 }
