@@ -1,20 +1,21 @@
 package com.str.platform.scraping.application.controller;
 
-import com.str.platform.scraping.domain.model.ScrapingJob;
+import com.str.platform.scraping.application.dto.BatchScrapingJobResponse;
+import com.str.platform.scraping.application.dto.ScrapingJobForLocationRequest;
+import com.str.platform.scraping.application.dto.ScrapingJobResponse;
+import com.str.platform.scraping.application.mapper.ScrapingJobDtoMapper;
 import com.str.platform.scraping.application.service.ScrapingOrchestrationService;
+import com.str.platform.scraping.domain.model.ScrapingJob;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -47,14 +48,17 @@ public class ScrapingController {
             @Parameter(description = "Location ID") @PathVariable UUID locationId,
             @Valid @RequestBody ScrapingJobForLocationRequest request
     ) {
-        log.info("Creating scraping job for locationId={}: platform={}", locationId, request.platform);
+        log.info("Creating scraping job for locationId={}: platform={}", locationId, request.platform());
 
-        ScrapingJob.Platform platform = ScrapingJob.Platform.valueOf(request.platform.toUpperCase());
+        ScrapingJob.Platform platform = ScrapingJob.Platform.valueOf(request.platform().toUpperCase());
         ScrapingJob job = orchestrationService.createScrapingJobForLocation(locationId, platform);
 
-        return ResponseEntity.ok(toResponse(job));
+        return ResponseEntity.ok(ScrapingJobDtoMapper.toResponse(job));
     }
-    
+
+    /**
+     * Create batch scraping jobs for all platforms for an existing Location.
+     */
     @PostMapping("/location/{locationId}/batch")
     @Operation(
         summary = "Create batch scraping jobs for location",
@@ -70,7 +74,7 @@ public class ScrapingController {
         List<ScrapingJob> jobs = orchestrationService.createScrapingJobsForAllPlatformsForLocation(locationId);
 
         List<ScrapingJobResponse> responses = jobs.stream()
-            .map(this::toResponse)
+            .map(ScrapingJobDtoMapper::toResponse)
             .collect(Collectors.toList());
 
         return ResponseEntity.ok(new BatchScrapingJobResponse(
@@ -93,7 +97,7 @@ public class ScrapingController {
             @Parameter(description = "Job ID") @PathVariable UUID id
     ) {
         ScrapingJob job = orchestrationService.getScrapingJob(id);
-        return ResponseEntity.ok(toResponse(job));
+        return ResponseEntity.ok(ScrapingJobDtoMapper.toResponse(job));
     }
     
     /**
@@ -112,7 +116,7 @@ public class ScrapingController {
         List<ScrapingJob> jobs = orchestrationService.getScrapingJobsByLocation(locationId);
         
         List<ScrapingJobResponse> responses = jobs.stream()
-            .map(this::toResponse)
+            .map(ScrapingJobDtoMapper::toResponse)
             .collect(Collectors.toList());
         
         return ResponseEntity.ok(responses);
@@ -134,7 +138,7 @@ public class ScrapingController {
     ) {
         log.info("Retrying scraping job: {}", id);
         ScrapingJob job = orchestrationService.retryScrapingJob(id);
-        return ResponseEntity.ok(toResponse(job));
+        return ResponseEntity.ok(ScrapingJobDtoMapper.toResponse(job));
     }
     
     /**
@@ -149,7 +153,7 @@ public class ScrapingController {
         List<ScrapingJob> jobs = orchestrationService.getPendingJobs();
         
         List<ScrapingJobResponse> responses = jobs.stream()
-            .map(this::toResponse)
+            .map(ScrapingJobDtoMapper::toResponse)
             .collect(Collectors.toList());
         
         return ResponseEntity.ok(responses);
@@ -167,81 +171,9 @@ public class ScrapingController {
         List<ScrapingJob> jobs = orchestrationService.getInProgressJobs();
         
         List<ScrapingJobResponse> responses = jobs.stream()
-            .map(this::toResponse)
+            .map(ScrapingJobDtoMapper::toResponse)
             .collect(Collectors.toList());
         
         return ResponseEntity.ok(responses);
     }
-    
-    /**
-     * Convert domain model to response DTO
-     */
-    private ScrapingJobResponse toResponse(ScrapingJob job) {
-        return new ScrapingJobResponse(
-            job.getId(),
-            job.getLocationId(),
-            job.getPlatform().name(),
-            job.getStatus().name(),
-            job.getPropertiesFound(),
-            job.getStartedAt() != null ? job.getStartedAt().atZone(java.time.ZoneId.systemDefault()).toInstant() : null,
-            job.getCompletedAt() != null ? job.getCompletedAt().atZone(java.time.ZoneId.systemDefault()).toInstant() : null,
-            job.getErrorMessage(),
-            job.getCreatedAt().atZone(java.time.ZoneId.systemDefault()).toInstant()
-        );
-    }
-    
-    /**
-     * Request DTO for creating a scraping job for an existing Location.
-     */
-    @Schema(description = "Request to create a scraping job for an existing location")
-    public record ScrapingJobForLocationRequest(
-        @Schema(description = "Platform to scrape", example = "AIRBNB", requiredMode = Schema.RequiredMode.REQUIRED)
-        @NotNull(message = "Platform is required")
-        String platform
-    ) {}
-    
-    /**
-     * Response DTO for scraping job
-     */
-    @Schema(description = "Scraping job details")
-    public record ScrapingJobResponse(
-        @Schema(description = "Job ID")
-        UUID id,
-        
-        @Schema(description = "Location ID")
-        UUID locationId,
-        
-        @Schema(description = "Platform")
-        String platform,
-        
-        @Schema(description = "Job status")
-        String status,
-        
-        @Schema(description = "Number of properties found")
-        Integer propertiesFound,
-        
-        @Schema(description = "When the job started")
-        Instant startedAt,
-        
-        @Schema(description = "When the job completed")
-        Instant completedAt,
-        
-        @Schema(description = "Error message if failed")
-        String errorMessage,
-        
-        @Schema(description = "When the job was created")
-        Instant createdAt
-    ) {}
-    
-    /**
-     * Response DTO for batch scraping jobs
-     */
-    @Schema(description = "Batch scraping job creation result")
-    public record BatchScrapingJobResponse(
-        @Schema(description = "Number of jobs created")
-        Integer jobsCreated,
-        
-        @Schema(description = "List of created jobs")
-        List<ScrapingJobResponse> jobs
-    ) {}
 }
