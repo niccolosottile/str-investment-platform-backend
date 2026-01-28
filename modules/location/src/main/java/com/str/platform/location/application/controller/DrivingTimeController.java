@@ -1,7 +1,7 @@
-package com.str.platform.api;
+package com.str.platform.location.application.controller;
 
-import com.str.platform.api.dto.DrivingTimeRequest;
-import com.str.platform.api.dto.DrivingTimeResponse;
+import com.str.platform.location.application.dto.DrivingTimeRequest;
+import com.str.platform.location.application.dto.DrivingTimeResponse;
 import com.str.platform.location.application.service.DrivingTimeService;
 import com.str.platform.location.domain.model.Distance;
 import io.swagger.v3.oas.annotations.Operation;

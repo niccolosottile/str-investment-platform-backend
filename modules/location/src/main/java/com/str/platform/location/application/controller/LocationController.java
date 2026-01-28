@@ -1,6 +1,6 @@
-package com.str.platform.api;
+package com.str.platform.location.application.controller;
 
-import com.str.platform.api.dto.*;
+import com.str.platform.location.application.dto.*;
 import com.str.platform.location.application.service.LocationService;
 import com.str.platform.location.domain.model.Location;
 import io.swagger.v3.oas.annotations.Operation;

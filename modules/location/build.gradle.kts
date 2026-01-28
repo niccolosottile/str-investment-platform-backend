@@ -1,8 +1,14 @@
 dependencies {
     implementation(project(":modules:shared-kernel"))
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
+    implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-webflux") // For WebClient
+    implementation("org.springframework.boot:spring-boot-starter-validation")
+    implementation("org.springframework.boot:spring-boot-starter-cache")
     implementation("com.fasterxml.jackson.core:jackson-databind")
+    
+    // OpenAPI/Swagger
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.2.0")
     
     // Resilience4j for rate limiting and retries
     implementation("io.github.resilience4j:resilience4j-spring-boot3")
