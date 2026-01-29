@@ -41,7 +41,6 @@ public class BatchScrapingService {
     
     /**
      * Start batch scraping operation based on strategy.
-     * Runs asynchronously to avoid blocking the HTTP request.
      * 
      * @param request Batch scraping configuration
      * @return Batch ID for tracking

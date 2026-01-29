@@ -28,7 +28,7 @@ public class InvestmentAnalysisService {
             InvestmentConfiguration config,
             MarketAnalysis marketAnalysis
     ) {
-        log.info("Calculating investment metrics for location: {}", config.getLocation());
+        log.info("Calculating investment metrics for locationId: {}", config.getLocationId());
         
         double expectedOccupancy = marketAnalysis.getAverageOccupancyRate().doubleValue();
         double conservativeOccupancy = clampOccupancy(expectedOccupancy * 0.85);
@@ -81,7 +81,7 @@ public class InvestmentAnalysisService {
     /**
      * Calculate monthly revenue based on daily rate and occupancy
      */
-    private Money calculateMonthlyRevenue(Money dailyRate, double occupancyRate) {
+    public Money calculateMonthlyRevenue(Money dailyRate, double occupancyRate) {
         // Monthly revenue = Daily Rate × Days per Month × Occupancy Rate
         double grossRevenue = dailyRate.getAmount().doubleValue() 
             * DAYS_PER_MONTH 

@@ -11,7 +11,6 @@ import java.math.BigDecimal;
 
 /**
  * Mapper for converting between Location domain model and LocationEntity.
- * Follows the DDD pattern where the infrastructure layer adapts to the domain.
  */
 @Component
 public class LocationEntityMapper {
@@ -113,7 +112,7 @@ public class LocationEntityMapper {
     }
 
     /**
-     * Update existing entity from domain model (for updates)
+     * Update existing entity from domain model
      */
     public void updateEntity(Location domain, LocationEntity entity) {
         if (domain == null || entity == null) {

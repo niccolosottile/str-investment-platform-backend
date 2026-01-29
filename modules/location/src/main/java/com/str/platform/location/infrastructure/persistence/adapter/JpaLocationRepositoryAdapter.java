@@ -18,7 +18,6 @@ import java.util.stream.Collectors;
 
 /**
  * Adapter implementing the LocationRepository domain interface using JPA.
- * This is the infrastructure layer adapting to the domain layer (DDD pattern).
  */
 @Component
 @RequiredArgsConstructor

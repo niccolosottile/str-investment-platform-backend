@@ -21,7 +21,7 @@ import java.util.stream.Collectors;
 
 /**
  * Application service for location operations.
- * Orchestrates domain logic, repository access, and external API calls.
+ * Uses Mapbox Geocoding API with caching.
  */
 @Service
 @RequiredArgsConstructor
@@ -33,12 +33,12 @@ public class LocationService {
 
     /**
      * Search for locations by query string and return best match.
-     * Uses Mapbox Geocoding API with highest relevance score.
      * 
      * @param query Search query (e.g., "Rome, Italy")
      * @return Best matching location
      * @throws EntityNotFoundException if no locations found
      */
+    @Cacheable(value = "location-search", key = "#query + '-best-match'")
     @Transactional
     public Location findBestMatch(String query) {
         log.info("Finding best location match for query: {}", query);
@@ -56,7 +56,6 @@ public class LocationService {
 
     /**
      * Search for locations by query string.
-     * Uses Mapbox Geocoding API and caches results for 1 hour.
      * 
      * @param query Search query (e.g., "Rome, Italy")
      * @param limit Maximum number of results
@@ -67,7 +66,6 @@ public class LocationService {
     public List<Location> searchLocations(String query, Integer limit) {
         log.info("Searching locations for query: {}", query);
 
-        // Call Mapbox Geocoding API
         GeocodingResponse response = mapboxClient.geocode(query, limit != null ? limit : 5);
 
         if (response == null || response.getFeatures() == null || response.getFeatures().isEmpty()) {
@@ -138,7 +136,7 @@ public class LocationService {
         }
 
         // Reverse geocode to get address information
-        String query = String.format("%f,%f", longitude, latitude); // Note: Mapbox uses lng,lat
+        String query = String.format("%f,%f", longitude, latitude);
         GeocodingResponse response = mapboxClient.geocode(query, 1);
 
         if (response == null || response.getFeatures() == null || response.getFeatures().isEmpty()) {
@@ -150,7 +148,6 @@ public class LocationService {
             return locationRepository.save(location);
         }
 
-        // Convert and save location
         return convertAndSaveLocation(response.getFeatures().get(0));
     }
 

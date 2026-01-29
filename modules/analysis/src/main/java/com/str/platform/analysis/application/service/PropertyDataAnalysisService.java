@@ -176,40 +176,6 @@ public class PropertyDataAnalysisService {
     }
     
     /**
-     * Calculate estimated monthly revenue.
-     * Formula: ADR × 30 days × occupancy rate
-     * 
-     * @param locationId Location to analyze
-     * @return Monthly revenue or null if insufficient data (missing ADR or occupancy)
-     */
-    public Money calculateMonthlyRevenue(UUID locationId) {
-        log.debug("Calculating monthly revenue for location: {}", locationId);
-        
-        Money adr = calculateAverageDailyRate(locationId);
-        if (adr == null) {
-            log.warn("Cannot calculate monthly revenue: no ADR data for location {}", locationId);
-            return null;
-        }
-        
-        BigDecimal occupancy = calculateOccupancy(locationId);
-        if (occupancy == null) {
-            log.warn("Cannot calculate monthly revenue: no occupancy data for location {}", locationId);
-            return null;
-        }
-        
-        // Monthly revenue = ADR × 30 days × occupancy
-        BigDecimal monthlyRevenue = adr.getAmount()
-            .multiply(BigDecimal.valueOf(30))
-            .multiply(occupancy)
-            .setScale(2, RoundingMode.HALF_UP);
-        
-        log.info("Calculated monthly revenue for location {}: {} (ADR: {}, Occupancy: {})",
-            locationId, monthlyRevenue, adr.getAmount(), occupancy);
-        
-        return new Money(monthlyRevenue, adr.getCurrency());
-    }
-    
-    /**
      * Calculate median from sorted list of values
      */
     private BigDecimal calculateMedian(List<BigDecimal> sortedValues) {

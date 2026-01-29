@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * Publisher for scraping job events to RabbitMQ.
- * Publishes events that Python workers will consume.
+ * Python workers consume these events to perform scraping tasks.
  * 
  * Note: Queue names are defined here to avoid circular dependency with application module.
  * Must match the configuration in RabbitMQConfig.
@@ -25,7 +25,6 @@ public class ScrapingJobPublisher {
     
     /**
      * Publish a scraping job created event to RabbitMQ.
-     * Python workers listen to this queue and start scraping.
      */
     public void publishJobCreated(ScrapingJobCreatedEvent event) {
         try {

@@ -8,9 +8,7 @@ import com.str.platform.scraping.domain.model.ScrapingJob;
  */
 public class ScrapingJobDtoMapper {
     
-    private ScrapingJobDtoMapper() {
-        // Utility class
-    }
+    private ScrapingJobDtoMapper() {}
     
     /**
      * Convert domain model to response DTO

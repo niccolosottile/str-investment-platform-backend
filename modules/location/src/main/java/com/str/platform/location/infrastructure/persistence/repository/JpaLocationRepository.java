@@ -13,7 +13,6 @@ import java.util.UUID;
 
 /**
  * Spring Data JPA repository for LocationEntity.
- * Provides database access methods for location data.
  */
 @Repository
 public interface JpaLocationRepository extends JpaRepository<LocationEntity, UUID> {

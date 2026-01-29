@@ -88,12 +88,12 @@ public class ScrapingController {
     }
 
     /**
-     * Orchestrate comprehensive location analysis (deep scrape + price sampling).
+     * Orchestrate comprehensive location analysis which includes deep scraping and price sampling.
      */
     @PostMapping("/location/{locationId}/orchestrate")
     @Operation(
         summary = "Orchestrate comprehensive location analysis",
-        description = "Creates FULL_PROFILE jobs for all platforms plus 36 PRICE_SAMPLE jobs (12 months × 3 platforms)"
+        description = "Creates FULL_PROFILE jobs for all platforms including PRICE_SAMPLE 12 weeks per platform."
     )
     @ApiResponse(responseCode = "200", description = "Orchestration completed")
     public ResponseEntity<BatchScrapingJobResponse> orchestrateLocationAnalysis(

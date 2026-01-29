@@ -17,23 +17,13 @@ public class AnalysisResponseMapper {
     public AnalysisResponse toResponse(AnalysisResult result) {
         return new AnalysisResponse(
             result.getId().toString(),
-            toLocationDto(result),
+            result.getConfiguration().getLocationId().toString(),
             toInvestmentConfigDto(result),
             toInvestmentMetricsDto(result),
             toMarketAnalysisDto(result),
             result.getDataQuality().name(),
             result.isCached(),
             result.getCreatedAt().atZone(java.time.ZoneId.systemDefault()).toInstant()
-        );
-    }
-    
-    /**
-     * Map location coordinates to LocationDto
-     */
-    private LocationDto toLocationDto(AnalysisResult result) {
-        return new LocationDto(
-            result.getConfiguration().getLocation().getLatitude(),
-            result.getConfiguration().getLocation().getLongitude()
         );
     }
     

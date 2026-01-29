@@ -14,7 +14,6 @@ import java.util.UUID;
 
 /**
  * JPA entity for location data persistence.
- * Maps to the 'locations' table created by Flyway migration V1.
  */
 @Entity
 @Table(name = "locations", indexes = {

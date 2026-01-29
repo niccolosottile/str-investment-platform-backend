@@ -3,8 +3,6 @@ package com.str.platform.analysis.application.service;
 import com.str.platform.analysis.domain.model.*;
 import com.str.platform.analysis.infrastructure.persistence.mapper.AnalysisResultEntityMapper;
 import com.str.platform.analysis.infrastructure.persistence.repository.JpaAnalysisResultRepository;
-import com.str.platform.location.application.service.LocationService;
-import com.str.platform.location.domain.model.Location;
 import com.str.platform.scraping.application.service.PropertyService;
 import com.str.platform.scraping.domain.model.Property;
 import com.str.platform.shared.domain.exception.EntityNotFoundException;
@@ -32,7 +30,6 @@ public class AnalysisOrchestrationService {
     private final PropertyService propertyService;
     private final JpaAnalysisResultRepository analysisResultRepository;
     private final AnalysisResultEntityMapper analysisResultMapper;
-    private final LocationService locationService;
     private final RedisTemplate<String, Object> redisTemplate;
     
     /**
@@ -51,10 +48,8 @@ public class AnalysisOrchestrationService {
             InvestmentConfiguration.InvestmentGoal goal,
             boolean acceptsRenovation
     ) {
-        Location location = locationService.getById(locationId);
-
         InvestmentConfiguration config = new InvestmentConfiguration(
-            location.getCoordinates(),
+            locationId,
             investmentType,
             budget,
             propertyType,
@@ -65,8 +60,8 @@ public class AnalysisOrchestrationService {
             config.setAcceptsRenovation(true);
         }
 
-        log.info("Starting investment analysis for locationId={} {} with budget: {}",
-            locationId, config.getLocation(), config.getBudget());
+        log.info("Starting investment analysis for locationId={} with budget: {}",
+            locationId, config.getBudget());
         
         List<Property> properties = propertyService.getPropertiesByLocation(locationId);
         
@@ -77,7 +72,6 @@ public class AnalysisOrchestrationService {
         
         MarketAnalysis marketAnalysis = marketAnalysisService.analyzeMarket(
             locationId,
-            config.getLocation(),
             properties
         );
         

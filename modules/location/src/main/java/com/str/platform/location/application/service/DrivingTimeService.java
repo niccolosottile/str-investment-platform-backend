@@ -19,7 +19,6 @@ import java.util.stream.Collectors;
 /**
  * Application service for driving time calculations.
  * Uses Mapbox Directions API with aggressive caching.
- * Leverages Java 21 virtual threads for concurrent batch calculations.
  */
 @Service
 @RequiredArgsConstructor
@@ -83,7 +82,6 @@ public class DrivingTimeService {
 
     /**
      * Calculate driving times from one origin to multiple destinations in parallel.
-     * Uses virtual threads for massive concurrency (1000+ destinations).
      * 
      * @param originLat Origin latitude
      * @param originLng Origin longitude

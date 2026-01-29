@@ -10,7 +10,6 @@ import org.springframework.stereotype.Component;
 
 /**
  * Listens for scraping data update events and triggers cache eviction.
- * Decouples scraping module from analysis module to avoid circular dependencies.
  */
 @Slf4j
 @Component

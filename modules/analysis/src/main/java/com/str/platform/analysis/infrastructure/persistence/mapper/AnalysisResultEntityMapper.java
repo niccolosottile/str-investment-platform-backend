@@ -2,7 +2,6 @@ package com.str.platform.analysis.infrastructure.persistence.mapper;
 
 import com.str.platform.analysis.domain.model.*;
 import com.str.platform.analysis.infrastructure.persistence.entity.AnalysisResultEntity;
-import com.str.platform.location.domain.model.Coordinates;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -32,12 +31,8 @@ public class AnalysisResultEntityMapper {
         // Create investment configuration with proper types
         InvestmentConfiguration.PropertyType propertyType = InvestmentConfiguration.PropertyType.valueOf(entity.getPropertyType());
         
-        // Note: We don't have actual Coordinates stored, so we create a placeholder
-        // In real implementation, this should be fetched from the Location service
-        Coordinates location = new Coordinates(0.0, 0.0); // Placeholder
-        
         InvestmentConfiguration config = new InvestmentConfiguration(
-            location,
+            entity.getLocationId(),
             mapInvestmentTypeToDomain(entity.getInvestmentType()),
             new Money(entity.getBudget(), Money.Currency.valueOf(entity.getCurrency())),
             propertyType,
@@ -51,13 +46,21 @@ public class AnalysisResultEntityMapper {
             mapDataQualityToDomain(entity.getDataQuality())
         );
 
-        // Set ID using reflection since BaseEntity doesn't expose setter
+        // Set BaseEntity fields using reflection since BaseEntity doesn't expose setters
         try {
             java.lang.reflect.Field idField = com.str.platform.shared.domain.common.BaseEntity.class.getDeclaredField("id");
             idField.setAccessible(true);
             idField.set(result, entity.getId());
+
+            java.lang.reflect.Field createdAtField = com.str.platform.shared.domain.common.BaseEntity.class.getDeclaredField("createdAt");
+            createdAtField.setAccessible(true);
+            createdAtField.set(result, entity.getCreatedAt().atZone(java.time.ZoneId.systemDefault()).toLocalDateTime());
+
+            java.lang.reflect.Field updatedAtField = com.str.platform.shared.domain.common.BaseEntity.class.getDeclaredField("updatedAt");
+            updatedAtField.setAccessible(true);
+            updatedAtField.set(result, entity.getUpdatedAt().atZone(java.time.ZoneId.systemDefault()).toLocalDateTime());
         } catch (Exception e) {
-            throw new RuntimeException("Failed to set analysis result ID", e);
+            throw new RuntimeException("Failed to set analysis result fields", e);
         }
 
         // Set cache metadata
@@ -78,6 +81,9 @@ public class AnalysisResultEntityMapper {
             return null;
         }
 
+        AnalysisResultEntity.MetricsData metricsData = mapMetricsToEntity(domain.getMetrics());
+        metricsData.setAverageDailyRate(domain.getMarketAnalysis().getAverageDailyRate().getAmount());
+
         return AnalysisResultEntity.builder()
             .id(domain.getId())
             .locationId(locationId)
@@ -85,7 +91,7 @@ public class AnalysisResultEntityMapper {
             .budget(domain.getConfiguration().getBudget().getAmount())
             .currency(domain.getConfiguration().getBudget().getCurrency().name())
             .propertyType(domain.getConfiguration().getPropertyType().name())
-            .metrics(mapMetricsToEntity(domain.getMetrics()))
+            .metrics(metricsData)
             .marketAnalysis(mapMarketAnalysisToEntity(domain.getMarketAnalysis()))
             .dataQuality(mapDataQualityToEntity(domain.getDataQuality()))
             .cached(domain.isCached())
@@ -114,7 +120,6 @@ public class AnalysisResultEntityMapper {
         data.setAnnualRoiOptimistic(BigDecimal.valueOf(domain.getAnnualROI()));
         data.setPaybackPeriodMonths(domain.getPaybackPeriodMonths());
         data.setOccupancyRate(BigDecimal.valueOf(domain.getOccupancyRate()));
-        data.setAverageDailyRate(null); // Not available in domain model
         return data;
     }
 

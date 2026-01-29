@@ -1,6 +1,5 @@
 package com.str.platform.analysis.domain.model;
 
-import com.str.platform.location.domain.model.Coordinates;
 import com.str.platform.shared.domain.common.BaseEntity;
 import lombok.Getter;
 
@@ -11,7 +10,7 @@ import lombok.Getter;
 @Getter
 public class InvestmentConfiguration extends BaseEntity {
     
-    private Coordinates location;
+    private java.util.UUID locationId;
     private InvestmentType investmentType;
     private Money budget;
     private PropertyType propertyType;
@@ -40,7 +39,7 @@ public class InvestmentConfiguration extends BaseEntity {
     }
     
     public InvestmentConfiguration(
-            Coordinates location,
+            java.util.UUID locationId,
             InvestmentType investmentType,
             Money budget,
             PropertyType propertyType,
@@ -49,7 +48,7 @@ public class InvestmentConfiguration extends BaseEntity {
         super();
         validateBudget(budget, investmentType);
         
-        this.location = location;
+        this.locationId = locationId;
         this.investmentType = investmentType;
         this.budget = budget;
         this.propertyType = propertyType;

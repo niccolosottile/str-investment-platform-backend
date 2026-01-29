@@ -13,8 +13,8 @@ public record AnalysisResponse(
     @Schema(description = "Unique analysis ID")
     String id,
     
-    @Schema(description = "Analysis location")
-    LocationDto location,
+    @Schema(description = "Location ID")
+    String locationId,
     
     @Schema(description = "Investment configuration")
     InvestmentConfigDto configuration,

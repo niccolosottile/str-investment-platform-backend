@@ -146,7 +146,6 @@ public class MapboxClient {
 
     /**
      * Batch calculate driving times from one origin to multiple destinations.
-     * Uses virtual threads for concurrent requests.
      */
     public java.util.Map<String, Double> batchGetDrivingTimes(
         double originLng, double originLat,

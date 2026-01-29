@@ -2,14 +2,12 @@ package com.str.platform.analysis.application.service;
 
 import com.str.platform.analysis.domain.model.MarketAnalysis;
 import com.str.platform.analysis.domain.model.Money;
-import com.str.platform.location.domain.model.Coordinates;
 import com.str.platform.scraping.domain.model.Property;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.List;
 import java.util.UUID;
 
@@ -23,9 +21,9 @@ import java.util.UUID;
 public class MarketAnalysisService {
     
     private final PropertyDataAnalysisService propertyDataAnalysisService;
+    private final InvestmentAnalysisService investmentAnalysisService;
     
     private static final double SEARCH_RADIUS_KM = 5.0; // 5km radius for market analysis
-    private static final double EARTH_RADIUS_KM = 6371.0;
     
     // Competition density thresholds (properties per km²)
     private static final double LOW_DENSITY_THRESHOLD = 10.0;
@@ -36,17 +34,15 @@ public class MarketAnalysisService {
      * Uses PropertyDataAnalysisService to get ADR and seasonality from actual price samples.
      * 
      * @param locationId Location identifier for querying scraped data
-     * @param location Coordinates for spatial analysis
      * @param nearbyProperties Properties for competition and growth analysis
      * @return Complete market analysis
      */
     public MarketAnalysis analyzeMarket(
             UUID locationId,
-            Coordinates location,
             List<Property> nearbyProperties
     ) {
-        log.info("Analyzing market for location: {} ({}) with {} properties",
-            locationId, location, nearbyProperties.size());
+        log.info("Analyzing market for location: {} with {} properties",
+            locationId, nearbyProperties.size());
         
         if (nearbyProperties.isEmpty()) {
             log.error("No properties found for market analysis at location {}", locationId);
@@ -67,12 +63,11 @@ public class MarketAnalysisService {
             return null;
         }
         
-        // Calculate estimated monthly revenue
-        Money monthlyRevenue = propertyDataAnalysisService.calculateMonthlyRevenue(locationId);
-        if (monthlyRevenue == null) {
-            log.error("Cannot calculate monthly revenue for location {}", locationId);
-            return null;
-        }
+        // Calculate estimated monthly revenue (net of operating costs)
+        Money monthlyRevenue = investmentAnalysisService.calculateMonthlyRevenue(
+            averageDailyRate,
+            occupancyRate.doubleValue()
+        );
         
         // Determine competition density
         MarketAnalysis.CompetitionDensity competitionDensity = 
@@ -179,39 +174,4 @@ public class MarketAnalysisService {
     }
     
 
-    /**
-     * Calculate distance between two coordinates (Haversine formula)
-     */
-    private double calculateDistance(
-            Coordinates from,
-            Coordinates to
-    ) {
-        double lat1 = Math.toRadians(from.getLatitude());
-        double lat2 = Math.toRadians(to.getLatitude());
-        double deltaLat = Math.toRadians(to.getLatitude() - from.getLatitude());
-        double deltaLng = Math.toRadians(to.getLongitude() - from.getLongitude());
-        
-        double a = Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2)
-                + Math.cos(lat1) * Math.cos(lat2)
-                * Math.sin(deltaLng / 2) * Math.sin(deltaLng / 2);
-        
-        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        
-        return EARTH_RADIUS_KM * c;
-    }
-    
-    /**
-     * Filter properties within radius
-     */
-    public List<Property> filterPropertiesWithinRadius(
-            Coordinates center,
-            List<Property> properties,
-            double radiusKm
-    ) {
-        return properties.stream()
-            .filter(property -> 
-                calculateDistance(center, property.getCoordinates()) <= radiusKm
-            )
-            .toList();
-    }
 }
