@@ -33,4 +33,19 @@ public abstract class BaseEntity {
     protected void markAsUpdated() {
         this.updatedAt = LocalDateTime.now();
     }
+
+    /**
+     * Restore entity identity and timestamps when rehydrating from persistence.
+     */
+    public void restore(UUID id, LocalDateTime createdAt, LocalDateTime updatedAt) {
+        if (id != null) {
+            this.id = id;
+        }
+        if (createdAt != null) {
+            this.createdAt = createdAt;
+        }
+        if (updatedAt != null) {
+            this.updatedAt = updatedAt;
+        }
+    }
 }

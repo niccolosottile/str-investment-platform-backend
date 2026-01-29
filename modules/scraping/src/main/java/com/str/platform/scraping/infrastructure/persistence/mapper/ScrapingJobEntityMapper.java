@@ -25,14 +25,11 @@ public class ScrapingJobEntityMapper {
             mapPlatformToDomain(entity.getPlatform())
         );
 
-        // Set ID using reflection since BaseEntity doesn't expose setter
-        try {
-            java.lang.reflect.Field idField = com.str.platform.shared.domain.common.BaseEntity.class.getDeclaredField("id");
-            idField.setAccessible(true);
-            idField.set(job, entity.getId());
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to set scraping job ID", e);
-        }
+        job.restore(
+            entity.getId(),
+            entity.getCreatedAt() != null ? entity.getCreatedAt().atZone(ZoneId.systemDefault()).toLocalDateTime() : null,
+            entity.getUpdatedAt() != null ? entity.getUpdatedAt().atZone(ZoneId.systemDefault()).toLocalDateTime() : null
+        );
 
         // Handle status transitions based on entity state
         if (entity.getStatus() == ScrapingJobEntity.JobStatus.IN_PROGRESS) {

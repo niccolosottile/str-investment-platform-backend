@@ -8,6 +8,7 @@ import com.str.platform.location.infrastructure.persistence.entity.LocationEntit
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.time.ZoneId;
 
 /**
  * Mapper for converting between Location domain model and LocationEntity.
@@ -51,14 +52,11 @@ public class LocationEntityMapper {
             ? new Location(coordinates, address, boundingBox)
             : new Location(coordinates, address);
         
-        // Set ID using reflection since BaseEntity doesn't expose setter
-        try {
-            java.lang.reflect.Field idField = com.str.platform.shared.domain.common.BaseEntity.class.getDeclaredField("id");
-            idField.setAccessible(true);
-            idField.set(location, entity.getId());
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to set location ID", e);
-        }
+        location.restore(
+            entity.getId(),
+            entity.getCreatedAt() != null ? entity.getCreatedAt().atZone(ZoneId.systemDefault()).toLocalDateTime() : null,
+            entity.getUpdatedAt() != null ? entity.getUpdatedAt().atZone(ZoneId.systemDefault()).toLocalDateTime() : null
+        );
 
         // Set additional metadata - convert Instant to LocalDateTime
         if (entity.getLastScraped() != null && entity.getPropertyCount() != null) {

@@ -7,6 +7,7 @@ import com.str.platform.scraping.infrastructure.persistence.entity.PropertyEntit
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.time.ZoneId;
 
 /**
  * Mapper for converting between Property domain model and PropertyEntity.
@@ -35,14 +36,11 @@ public class PropertyEntityMapper {
             Property.PropertyType.valueOf(entity.getPropertyType())
         );
 
-        // Set ID using reflection since BaseEntity doesn't expose setter
-        try {
-            java.lang.reflect.Field idField = com.str.platform.shared.domain.common.BaseEntity.class.getDeclaredField("id");
-            idField.setAccessible(true);
-            idField.set(property, entity.getId());
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to set property ID", e);
-        }
+        property.restore(
+            entity.getId(),
+            entity.getCreatedAt() != null ? entity.getCreatedAt().atZone(ZoneId.systemDefault()).toLocalDateTime() : null,
+            entity.getUpdatedAt() != null ? entity.getUpdatedAt().atZone(ZoneId.systemDefault()).toLocalDateTime() : null
+        );
         
         // Set additional details
         property.setDetails(

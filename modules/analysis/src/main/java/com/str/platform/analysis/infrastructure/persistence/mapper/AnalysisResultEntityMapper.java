@@ -46,22 +46,11 @@ public class AnalysisResultEntityMapper {
             mapDataQualityToDomain(entity.getDataQuality())
         );
 
-        // Set BaseEntity fields using reflection since BaseEntity doesn't expose setters
-        try {
-            java.lang.reflect.Field idField = com.str.platform.shared.domain.common.BaseEntity.class.getDeclaredField("id");
-            idField.setAccessible(true);
-            idField.set(result, entity.getId());
-
-            java.lang.reflect.Field createdAtField = com.str.platform.shared.domain.common.BaseEntity.class.getDeclaredField("createdAt");
-            createdAtField.setAccessible(true);
-            createdAtField.set(result, entity.getCreatedAt().atZone(java.time.ZoneId.systemDefault()).toLocalDateTime());
-
-            java.lang.reflect.Field updatedAtField = com.str.platform.shared.domain.common.BaseEntity.class.getDeclaredField("updatedAt");
-            updatedAtField.setAccessible(true);
-            updatedAtField.set(result, entity.getUpdatedAt().atZone(java.time.ZoneId.systemDefault()).toLocalDateTime());
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to set analysis result fields", e);
-        }
+        result.restore(
+            entity.getId(),
+            entity.getCreatedAt() != null ? entity.getCreatedAt().atZone(java.time.ZoneId.systemDefault()).toLocalDateTime() : null,
+            entity.getUpdatedAt() != null ? entity.getUpdatedAt().atZone(java.time.ZoneId.systemDefault()).toLocalDateTime() : null
+        );
 
         // Set cache metadata
         if (entity.getCached()) {
