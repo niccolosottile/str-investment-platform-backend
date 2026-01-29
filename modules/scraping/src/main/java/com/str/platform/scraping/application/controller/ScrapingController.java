@@ -9,6 +9,7 @@ import com.str.platform.scraping.application.mapper.ScrapingJobDtoMapper;
 import com.str.platform.scraping.application.service.BatchScrapingService;
 import com.str.platform.scraping.application.service.ScrapingOrchestrationService;
 import com.str.platform.scraping.domain.model.ScrapingJob;
+import com.str.platform.shared.domain.exception.EntityNotFoundException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -55,7 +56,11 @@ public class ScrapingController {
         log.info("Creating scraping job for locationId={}: platform={}", locationId, request.platform());
 
         ScrapingJob.Platform platform = ScrapingJob.Platform.valueOf(request.platform().toUpperCase());
-        ScrapingJob job = orchestrationService.createScrapingJobForLocation(locationId, platform);
+        ScrapingJob job = orchestrationService.createScrapingJobForLocation(
+            locationId,
+            platform,
+            com.str.platform.scraping.domain.model.JobType.FULL_PROFILE
+        );
 
         return ResponseEntity.ok(ScrapingJobDtoMapper.toResponse(job));
     }
@@ -75,7 +80,10 @@ public class ScrapingController {
     ) {
         log.info("Creating batch scraping jobs for locationId={}", locationId);
 
-        List<ScrapingJob> jobs = orchestrationService.createScrapingJobsForAllPlatformsForLocation(locationId);
+        List<ScrapingJob> jobs = orchestrationService.createScrapingJobsForAllPlatformsForLocation(
+            locationId,
+            com.str.platform.scraping.domain.model.JobType.FULL_PROFILE
+        );
 
         List<ScrapingJobResponse> responses = jobs.stream()
             .map(ScrapingJobDtoMapper::toResponse)
@@ -126,13 +134,12 @@ public class ScrapingController {
     public ResponseEntity<ScrapingJobResponse> getJobStatus(
             @Parameter(description = "Job ID") @PathVariable UUID jobId
     ) {
-        ScrapingJob job = orchestrationService.getJobById(jobId);
-        
-        if (job == null) {
+        try {
+            ScrapingJob job = orchestrationService.getScrapingJob(jobId);
+            return ResponseEntity.ok(ScrapingJobDtoMapper.toResponse(job));
+        } catch (EntityNotFoundException e) {
             return ResponseEntity.notFound().build();
         }
-        
-        return ResponseEntity.ok(ScrapingJobDtoMapper.toResponse(job));
     }
 
     /**
