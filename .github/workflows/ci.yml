@@ -69,10 +69,12 @@ jobs:
       
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
+        if: hashFiles('**/build/reports/jacoco/**/*.xml') != ''
         with:
-          files: ./application/build/reports/jacoco/test/jacocoTestReport.xml
+          files: ./**/build/reports/jacoco/test/jacocoTestReport.xml
           flags: unittests
           name: codecov-umbrella
+          fail_ci_if_error: false
       
       - name: Build Docker image
         run: docker build -t str-backend:${{ github.sha }} .
