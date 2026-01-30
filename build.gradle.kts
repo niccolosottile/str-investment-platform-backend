@@ -1,5 +1,6 @@
 plugins {
     java
+    jacoco
     id("org.springframework.boot") version "3.2.0" apply false
     id("io.spring.dependency-management") version "1.1.4" apply false
 }
@@ -15,6 +16,7 @@ allprojects {
 
 subprojects {
     apply(plugin = "java")
+    apply(plugin = "jacoco")
     apply(plugin = "io.spring.dependency-management")
     
     the<io.spring.gradle.dependencymanagement.dsl.DependencyManagementExtension>().apply {
@@ -49,10 +51,23 @@ subprojects {
     
     tasks.withType<Test> {
         useJUnitPlatform()
+        finalizedBy(tasks.jacocoTestReport)
     }
     
     tasks.withType<JavaCompile> {
         options.encoding = "UTF-8"
         options.compilerArgs.add("-parameters")
+    }
+    
+    tasks.jacocoTestReport {
+        dependsOn(tasks.test)
+        reports {
+            xml.required.set(true)
+            html.required.set(true)
+        }
+    }
+    
+    jacoco {
+        toolVersion = "0.8.11"
     }
 }
