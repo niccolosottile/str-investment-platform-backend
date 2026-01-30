@@ -7,7 +7,7 @@ COPY . .
 RUN gradle clean build -x test --no-daemon
 
 # Stage 2: Runtime
-FROM eclipse-temurin:21-jre-alpine
+FROM amazoncorretto:21-alpine
 
 # Add non-root user for security
 RUN addgroup -S spring && adduser -S spring -G spring
