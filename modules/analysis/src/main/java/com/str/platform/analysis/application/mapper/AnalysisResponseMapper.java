@@ -36,7 +36,7 @@ public class AnalysisResponseMapper {
             result.getConfiguration().getBudget().getAmount(),
             result.getConfiguration().getBudget().getCurrency().name(),
             result.getConfiguration().getPropertyType().name(),
-            result.getConfiguration().getGoal().name(),
+            result.getConfiguration().getGoal() != null ? result.getConfiguration().getGoal().name() : null,
             result.getConfiguration().isAcceptsRenovation()
         );
     }
