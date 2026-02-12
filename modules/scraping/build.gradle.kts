@@ -17,6 +17,9 @@ dependencies {
     
     // JSON
     implementation("com.fasterxml.jackson.core:jackson-databind")
+
+    // Metrics
+    implementation("io.micrometer:micrometer-core")
     
     // Testing
     testImplementation("org.springframework.boot:spring-boot-starter-test")

@@ -75,6 +75,12 @@ public class PropertyEntity {
     @Column(name = "image_url")
     private String imageUrl;
 
+    @Column(name = "pdp_last_scraped")
+    private Instant pdpLastScraped;
+
+    @Column(name = "availability_last_scraped")
+    private Instant availabilityLastScraped;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

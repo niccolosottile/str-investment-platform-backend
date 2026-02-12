@@ -4,10 +4,12 @@ import com.str.platform.scraping.domain.event.ScrapingJobCompletedEvent;
 import com.str.platform.scraping.domain.event.ScrapingJobFailedEvent;
 import com.str.platform.scraping.domain.model.PropertyAvailability;
 import com.str.platform.scraping.domain.model.PriceSample;
+import com.str.platform.scraping.domain.model.ScrapingJob;
 import com.str.platform.scraping.infrastructure.persistence.entity.PropertyAvailabilityEntity;
 import com.str.platform.scraping.infrastructure.persistence.entity.PropertyEntity;
 import com.str.platform.scraping.infrastructure.persistence.entity.PriceSampleEntity;
 import com.str.platform.scraping.infrastructure.persistence.entity.ScrapingJobEntity;
+import com.str.platform.scraping.infrastructure.metrics.ScrapingMetricsService;
 import com.str.platform.scraping.infrastructure.persistence.repository.JpaPropertyAvailabilityRepository;
 import com.str.platform.scraping.infrastructure.persistence.repository.JpaPropertyRepository;
 import com.str.platform.scraping.infrastructure.persistence.repository.JpaPriceSampleRepository;
@@ -42,6 +44,7 @@ public class ScrapingResultConsumer {
     private final JpaPropertyAvailabilityRepository availabilityRepository;
     private final JpaPriceSampleRepository priceSampleRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final ScrapingMetricsService scrapingMetricsService;
     
     public static final String SCRAPING_RESULT_QUEUE = "str.scraping.result.queue";
     
@@ -65,6 +68,11 @@ public class ScrapingResultConsumer {
             jobEntity.setCompletedAt(event.getOccurredAt().atZone(java.time.ZoneId.systemDefault()).toInstant());
             jobEntity.setPropertiesFound(event.getPropertiesFound());
             scrapingJobRepository.save(jobEntity);
+
+            scrapingMetricsService.recordJobCompleted(
+                event.getJobType(),
+                ScrapingJob.Platform.valueOf(jobEntity.getPlatform().name())
+            );
             
             // Location-first: jobs must always carry a Location ID
             UUID locationId = jobEntity.getLocationId();
@@ -153,6 +161,12 @@ public class ScrapingResultConsumer {
             jobEntity.setCompletedAt(event.getOccurredAt().atZone(java.time.ZoneId.systemDefault()).toInstant());
             jobEntity.setErrorMessage(event.getErrorMessage());
             scrapingJobRepository.save(jobEntity);
+
+            scrapingMetricsService.recordJobFailed(
+                null,
+                ScrapingJob.Platform.valueOf(jobEntity.getPlatform().name()),
+                event.getErrorType()
+            );
             
             log.info("Marked scraping job as failed: jobId={}", event.getJobId());
             
@@ -168,6 +182,12 @@ public class ScrapingResultConsumer {
      */
     private PropertyEntity createPropertyEntity(ScrapingJobCompletedEvent.PropertyData propData, 
                                                 UUID locationId) {
+        Instant pdpLastScraped = toInstant(propData.getPdpLastScraped());
+        Instant availabilityLastScraped =
+            propData.getAvailability() != null && !propData.getAvailability().isEmpty()
+                ? Instant.now()
+                : null;
+
         return PropertyEntity.builder()
             .locationId(locationId)
             .platform(PropertyEntity.Platform.valueOf(propData.getPlatform()))
@@ -184,6 +204,8 @@ public class ScrapingResultConsumer {
             .isSuperhost(propData.getIsSuperhost())
             .imageUrl(propData.getImageUrl())
             .propertyUrl(propData.getPropertyUrl())
+            .pdpLastScraped(pdpLastScraped)
+            .availabilityLastScraped(availabilityLastScraped)
             .build();
     }
     
@@ -203,6 +225,21 @@ public class ScrapingResultConsumer {
         entity.setIsSuperhost(propData.getIsSuperhost());
         entity.setImageUrl(propData.getImageUrl());
         entity.setPropertyUrl(propData.getPropertyUrl());
+
+        Instant pdpLastScraped = toInstant(propData.getPdpLastScraped());
+        if (pdpLastScraped != null) {
+            entity.setPdpLastScraped(pdpLastScraped);
+        }
+
+        if (propData.getAvailability() != null && !propData.getAvailability().isEmpty()) {
+            entity.setAvailabilityLastScraped(Instant.now());
+        }
+    }
+
+    private Instant toInstant(java.time.LocalDateTime dateTime) {
+        return dateTime == null
+            ? null
+            : dateTime.atZone(java.time.ZoneId.systemDefault()).toInstant();
     }
     
     /**

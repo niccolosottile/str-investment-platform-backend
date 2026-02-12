@@ -6,6 +6,7 @@ import com.str.platform.location.domain.model.Location;
 import com.str.platform.scraping.domain.event.ScrapingJobCreatedEvent;
 import com.str.platform.scraping.domain.model.ScrapingJob;
 import com.str.platform.scraping.domain.model.JobType;
+import com.str.platform.scraping.infrastructure.metrics.ScrapingMetricsService;
 import com.str.platform.scraping.infrastructure.messaging.ScrapingJobPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +26,7 @@ public class ScrapingJobPublisherService {
 
     private final LocationService locationService;
     private final ScrapingJobPublisher jobPublisher;
+    private final ScrapingMetricsService scrapingMetricsService;
 
     public void publishJobCreated(
             ScrapingJob job,
@@ -60,5 +62,6 @@ public class ScrapingJobPublisherService {
         }
 
         jobPublisher.publishJobCreated(eventBuilder.build());
+        scrapingMetricsService.recordJobQueued(jobType, job.getPlatform());
     }
 }

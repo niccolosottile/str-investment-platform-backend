@@ -1,0 +1,124 @@
+{
+  "title": "STR Platform Overview",
+  "tags": ["str", "scraping", "api"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "30s",
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Scraping Jobs Completed (rate)",
+      "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+      "targets": [
+        {
+          "expr": "sum(rate(scraping_jobs_completed_total[5m]))",
+          "legendFormat": "completed/s"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Scraping Jobs Failed (rate)",
+      "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+      "targets": [
+        {
+          "expr": "sum(rate(scraping_jobs_failed_total[5m]))",
+          "legendFormat": "failed/s"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Scraping Jobs In Progress",
+      "gridPos": {"x": 0, "y": 8, "w": 6, "h": 5},
+      "targets": [
+        {
+          "expr": "scraping_jobs_in_progress",
+          "legendFormat": "in_progress"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Scraping Failure Rate (5m)",
+      "gridPos": {"x": 6, "y": 8, "w": 6, "h": 5},
+      "targets": [
+        {
+          "expr": "sum(rate(scraping_jobs_failed_total[5m])) / (sum(rate(scraping_jobs_completed_total[5m])) + sum(rate(scraping_jobs_failed_total[5m])))",
+          "legendFormat": "failure_rate"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Stale PDP Data",
+      "gridPos": {"x": 12, "y": 8, "w": 6, "h": 5},
+      "targets": [
+        {
+          "expr": "scraping_properties_stale_pdp",
+          "legendFormat": "stale_pdp"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Stale Availability Data",
+      "gridPos": {"x": 18, "y": 8, "w": 6, "h": 5},
+      "targets": [
+        {
+          "expr": "scraping_properties_stale_availability",
+          "legendFormat": "stale_availability"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "API Request Rate",
+      "gridPos": {"x": 0, "y": 13, "w": 12, "h": 8},
+      "targets": [
+        {
+          "expr": "sum(rate(controller_requests_total[5m]))",
+          "legendFormat": "req/s"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "API Error Rate",
+      "gridPos": {"x": 12, "y": 13, "w": 12, "h": 8},
+      "targets": [
+        {
+          "expr": "sum(rate(controller_requests_total{status=\"error\"}[5m])) / sum(rate(controller_requests_total[5m]))",
+          "legendFormat": "error_rate"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "API Latency (avg)",
+      "gridPos": {"x": 0, "y": 21, "w": 24, "h": 8},
+      "targets": [
+        {
+          "expr": "(sum(rate(controller_duration_seconds_sum[5m])) / sum(rate(controller_duration_seconds_count[5m]))) * 1000",
+          "legendFormat": "avg_latency_ms"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        }
+      }
+    }
+  ]
+}

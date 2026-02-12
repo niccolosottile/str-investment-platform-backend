@@ -1,0 +1,44 @@
+groups:
+  - name: scraping.alerts
+    rules:
+      - alert: HighJobFailureRate
+        expr: |
+          (sum(rate(scraping_jobs_failed_total[5m])) / (sum(rate(scraping_jobs_completed_total[5m])) + sum(rate(scraping_jobs_failed_total[5m])))) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High scraping job failure rate"
+          description: "Scraping job failure rate exceeded 5% over 5 minutes."
+
+      - alert: StaleDataThreshold
+        expr: |
+          (scraping_properties_stale_pdp + scraping_properties_stale_availability) > 1000
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Stale scraping data threshold exceeded"
+          description: "More than 1000 properties have stale PDP or availability data."
+
+      - alert: JobProcessingStalled
+        expr: |
+          scraping_jobs_in_progress > 0 and rate(scraping_jobs_completed_total[30m]) == 0
+        for: 30m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Scraping job processing stalled"
+          description: "Jobs are in progress but none completed in the last 30 minutes."
+
+  - name: api.alerts
+    rules:
+      - alert: ApiErrorRateHigh
+        expr: |
+          (sum(rate(controller_requests_total{status="error"}[5m])) / sum(rate(controller_requests_total[5m]))) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High API error rate"
+          description: "More than 5% of controller requests are failing over 5 minutes."

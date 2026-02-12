@@ -7,6 +7,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -49,5 +50,25 @@ public interface JpaPropertyRepository extends JpaRepository<PropertyEntity, UUI
      * Count properties for a location
      */
     long countByLocationId(UUID locationId);
+
+    /**
+     * Count properties with stale PDP data (null or older than threshold)
+     */
+    @Query("""
+        SELECT COUNT(p) FROM PropertyEntity p
+        WHERE p.pdpLastScraped IS NULL
+        OR p.pdpLastScraped < :threshold
+        """)
+    long countStalePdp(@Param("threshold") Instant threshold);
+
+    /**
+     * Count properties with stale availability data (null or older than threshold)
+     */
+    @Query("""
+        SELECT COUNT(p) FROM PropertyEntity p
+        WHERE p.availabilityLastScraped IS NULL
+        OR p.availabilityLastScraped < :threshold
+        """)
+    long countStaleAvailability(@Param("threshold") Instant threshold);
 
 }
