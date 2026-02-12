@@ -10,6 +10,8 @@ Spring Boot backend for the STR Investment Platform. Orchestrates data scraping,
 
 **Distributed Caching**: Redis for performance optimization and reducing external API calls.
 
+**Observability**: Micrometer + Prometheus + Grafana + Alertmanager for metrics and alerting.
+
 **Bounded Contexts**: Each module encapsulates its own domain logic with clear boundaries. Modules communicate through domain events and well-defined interfaces.
 
 ## Tech Stack
@@ -19,6 +21,7 @@ Spring Boot backend for the STR Investment Platform. Orchestrates data scraping,
 - PostgreSQL 16 + Spring Data JPA
 - Redis 7
 - RabbitMQ
+- Micrometer + Prometheus + Grafana
 - Gradle (Kotlin DSL)
 - Docker + Docker Compose
 - TestContainers + JUnit 5
@@ -37,6 +40,11 @@ application/
 ├── config/           # Spring configuration
 └── resources/
     └── db/migration/ # Flyway SQL migrations
+
+infrastructure/monitoring/
+├── prometheus/        # Prometheus config + alerts
+├── alertmanager/      # Alert routing
+└── grafana/           # Dashboards + provisioning
 ```
 
 ## Running Locally
@@ -56,6 +64,8 @@ API runs on `http://localhost:8080`.
 
 **Swagger UI**: `http://localhost:8080/swagger-ui.html`  
 **RabbitMQ Management**: `http://localhost:15672` (str_user/str_password)
+**Prometheus**: `http://localhost:9090`  
+**Grafana**: `http://localhost:3000` (admin/admin)
 
 ## Environment Variables
 
@@ -73,6 +83,8 @@ GET  /api/health                      - Health check
 GET  /api/locations/nearby            - Find investment opportunities
 POST /api/locations/search            - Search locations
 POST /api/analysis                    - Run investment analysis
+POST /api/scraping/jobs/batch/start   - Start batch scraping
+GET  /api/scraping/jobs/batch/status  - Batch scraping status
 GET  /actuator/health                 - Spring actuator health
 GET  /actuator/prometheus             - Metrics
 ```
