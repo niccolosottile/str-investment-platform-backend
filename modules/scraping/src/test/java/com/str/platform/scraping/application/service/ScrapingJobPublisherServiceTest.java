@@ -8,6 +8,7 @@ import com.str.platform.location.domain.model.Location;
 import com.str.platform.scraping.domain.event.ScrapingJobCreatedEvent;
 import com.str.platform.scraping.domain.model.JobType;
 import com.str.platform.scraping.domain.model.ScrapingJob;
+import com.str.platform.scraping.infrastructure.metrics.ScrapingMetricsService;
 import com.str.platform.scraping.infrastructure.messaging.ScrapingJobPublisher;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -33,6 +34,9 @@ class ScrapingJobPublisherServiceTest {
 
     @Mock
     private ScrapingJobPublisher jobPublisher;
+
+    @Mock
+    private ScrapingMetricsService scrapingMetricsService;
 
     @InjectMocks
     private ScrapingJobPublisherService sut;
