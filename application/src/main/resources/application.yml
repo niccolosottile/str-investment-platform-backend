@@ -49,6 +49,12 @@ spring:
     redis:
       time-to-live: 3600000  # 1 hour default
 
+supabase:
+  url: ${SUPABASE_URL:}
+  jwk-set-uri: ${SUPABASE_JWK_SET_URI:${SUPABASE_URL:}/auth/v1/keys}
+  jwt-issuer: ${SUPABASE_JWT_ISSUER:${SUPABASE_URL:}/auth/v1}
+  audience: ${SUPABASE_JWT_AUDIENCE:authenticated}
+
 server:
   port: 8080
   error:
