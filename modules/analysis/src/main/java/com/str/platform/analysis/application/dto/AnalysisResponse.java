@@ -27,6 +27,12 @@ public record AnalysisResponse(
     
     @Schema(description = "Data quality indicator", example = "HIGH")
     String dataQuality,
+
+    @Schema(description = "Normalized market score (0-100)", example = "82")
+    int marketScore,
+
+    @Schema(description = "Confidence level for the investment outcome", example = "HIGH")
+    String confidence,
     
     @Schema(description = "Whether data is from cache")
     boolean cached,

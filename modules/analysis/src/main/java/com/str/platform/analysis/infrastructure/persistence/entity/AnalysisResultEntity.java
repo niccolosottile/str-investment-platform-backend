@@ -50,6 +50,10 @@ public class AnalysisResultEntity {
     @Column(name = "property_type")
     private String propertyType;
 
+    @Column(name = "investment_goal")
+    @Enumerated(EnumType.STRING)
+    private InvestmentGoal investmentGoal;
+
     // Investment Metrics (stored as JSON for flexibility)
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "metrics", columnDefinition = "jsonb")
@@ -84,6 +88,12 @@ public class AnalysisResultEntity {
     public enum InvestmentType {
         BUY,
         RENT
+    }
+
+    public enum InvestmentGoal {
+        MAX_ROI,
+        STABLE_INCOME,
+        QUICK_PAYBACK
     }
 
     /**

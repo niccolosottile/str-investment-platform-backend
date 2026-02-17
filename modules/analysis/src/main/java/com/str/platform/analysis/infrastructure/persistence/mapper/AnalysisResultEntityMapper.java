@@ -36,7 +36,7 @@ public class AnalysisResultEntityMapper {
             mapInvestmentTypeToDomain(entity.getInvestmentType()),
             new Money(entity.getBudget(), Money.Currency.valueOf(entity.getCurrency())),
             propertyType,
-            null // goals not stored in entity for now
+            mapInvestmentGoalToDomain(entity.getInvestmentGoal())
         );
 
         AnalysisResult result = new AnalysisResult(
@@ -80,6 +80,7 @@ public class AnalysisResultEntityMapper {
             .budget(domain.getConfiguration().getBudget().getAmount())
             .currency(domain.getConfiguration().getBudget().getCurrency().name())
             .propertyType(domain.getConfiguration().getPropertyType().name())
+            .investmentGoal(mapInvestmentGoalToEntity(domain.getConfiguration().getGoal()))
             .metrics(metricsData)
             .marketAnalysis(mapMarketAnalysisToEntity(domain.getMarketAnalysis()))
             .dataQuality(mapDataQualityToEntity(domain.getDataQuality()))
@@ -148,6 +149,30 @@ public class AnalysisResultEntityMapper {
         return switch (domainType) {
             case BUY -> AnalysisResultEntity.InvestmentType.BUY;
             case RENT -> AnalysisResultEntity.InvestmentType.RENT;
+        };
+    }
+
+    private InvestmentConfiguration.InvestmentGoal mapInvestmentGoalToDomain(AnalysisResultEntity.InvestmentGoal entityGoal) {
+        if (entityGoal == null) {
+            return null;
+        }
+
+        return switch (entityGoal) {
+            case MAX_ROI -> InvestmentConfiguration.InvestmentGoal.MAX_ROI;
+            case STABLE_INCOME -> InvestmentConfiguration.InvestmentGoal.STABLE_INCOME;
+            case QUICK_PAYBACK -> InvestmentConfiguration.InvestmentGoal.QUICK_PAYBACK;
+        };
+    }
+
+    private AnalysisResultEntity.InvestmentGoal mapInvestmentGoalToEntity(InvestmentConfiguration.InvestmentGoal domainGoal) {
+        if (domainGoal == null) {
+            return null;
+        }
+
+        return switch (domainGoal) {
+            case MAX_ROI -> AnalysisResultEntity.InvestmentGoal.MAX_ROI;
+            case STABLE_INCOME -> AnalysisResultEntity.InvestmentGoal.STABLE_INCOME;
+            case QUICK_PAYBACK -> AnalysisResultEntity.InvestmentGoal.QUICK_PAYBACK;
         };
     }
 

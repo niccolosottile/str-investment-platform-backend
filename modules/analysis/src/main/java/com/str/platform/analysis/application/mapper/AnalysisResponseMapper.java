@@ -22,6 +22,8 @@ public class AnalysisResponseMapper {
             toInvestmentMetricsDto(result),
             toMarketAnalysisDto(result),
             result.getDataQuality().name(),
+            calculateMarketScore(result),
+            calculateConfidence(result),
             result.isCached(),
             result.getCreatedAt().atZone(java.time.ZoneId.systemDefault()).toInstant()
         );
@@ -80,5 +82,50 @@ public class AnalysisResponseMapper {
             money.getAmount(),
             money.getCurrency().name()
         );
+    }
+
+    private int calculateMarketScore(AnalysisResult result) {
+        int score = switch (result.getDataQuality()) {
+            case HIGH -> 75;
+            case MEDIUM -> 60;
+            case LOW -> 45;
+        };
+
+        score += switch (result.getMarketAnalysis().getGrowthTrend()) {
+            case INCREASING -> 15;
+            case STABLE -> 8;
+            case DECLINING -> -12;
+        };
+
+        score += switch (result.getMarketAnalysis().getCompetitionDensity()) {
+            case LOW -> 8;
+            case MEDIUM -> 0;
+            case HIGH -> -8;
+        };
+
+        double occupancyPct = result.getMarketAnalysis().getAverageOccupancyRate().doubleValue() * 100.0;
+        if (occupancyPct >= 80) {
+            score += 7;
+        } else if (occupancyPct >= 65) {
+            score += 3;
+        } else if (occupancyPct < 50) {
+            score -= 5;
+        }
+
+        return Math.max(0, Math.min(100, score));
+    }
+
+    private String calculateConfidence(AnalysisResult result) {
+        double roi = result.getMetrics().getAnnualROI();
+
+        if (roi > 8.0) {
+            return "HIGH";
+        }
+
+        if (roi > 5.0) {
+            return "MEDIUM";
+        }
+
+        return "LOW";
     }
 }
