@@ -24,4 +24,4 @@ logs/
 
 # Environment
 .env
-.env.local
+.env.*

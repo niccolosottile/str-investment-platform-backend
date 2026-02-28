@@ -10,6 +10,7 @@ spring:
   
   jpa:
     show-sql: false
+    open-in-view: false
   
   data:
     redis:
@@ -22,6 +23,11 @@ spring:
     port: ${RABBITMQ_PORT:5672}
     username: ${RABBITMQ_USER}
     password: ${RABBITMQ_PASSWORD}
+
+server:
+  error:
+    include-stacktrace: never
+    include-message: always
 
 logging:
   level:
