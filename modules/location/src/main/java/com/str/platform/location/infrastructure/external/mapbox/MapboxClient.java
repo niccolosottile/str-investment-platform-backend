@@ -27,7 +27,7 @@ import java.time.Duration;
 @Slf4j
 public class MapboxClient {
 
-    private static final String GEOCODING_BASE_URL = "https://api.mapbox.com/geocoding/v5/mapbox.places";
+    private static final String GEOCODING_BASE_URL = "https://api.mapbox.com/search/geocode/v6/forward";
     private static final String DIRECTIONS_BASE_URL = "https://api.mapbox.com/directions/v5/mapbox";
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(10);
 
@@ -60,29 +60,35 @@ public class MapboxClient {
             throw new IllegalArgumentException("Query cannot be null or empty");
         }
 
-        String url = UriComponentsBuilder
-                .fromHttpUrl(GEOCODING_BASE_URL + "/{query}.json")
-                .queryParam("access_token", accessToken)
-                .queryParam("limit", limit != null ? limit : 5)
-                .queryParam("types", "place,region,country")
-                .queryParam("language", "en")
-                .build(false)
-                .expand(query)
-                .encode()
-                .toUriString();
+        // Build URL manually to avoid Spring encoding commas in "types" to %2C,
+        // which causes Mapbox v6 to return empty features.
+        String encodedQuery;
+        try {
+            encodedQuery = java.net.URLEncoder.encode(query, java.nio.charset.StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            encodedQuery = query;
+        }
+        String url = GEOCODING_BASE_URL
+                + "?q=" + encodedQuery
+                + "&access_token=" + accessToken
+                + "&limit=" + (limit != null ? limit : 5)
+                + "&types=place,locality,region,country";
 
         try {
-            return webClient.get()
+            GeocodingResponse response = webClient.get()
                 .uri(url)
                 .retrieve()
                 .bodyToMono(GeocodingResponse.class)
                 .timeout(REQUEST_TIMEOUT)
                 .block();
+            int count = (response != null && response.getFeatures() != null) ? response.getFeatures().size() : 0;
+            log.debug("Mapbox returned {} feature(s) for query: {}", count, query);
+            return response;
         } catch (WebClientResponseException e) {
             log.error("Mapbox geocoding API error: {} - {}", e.getStatusCode(), e.getResponseBodyAsString());
             throw new MapboxApiException("Geocoding request failed: " + e.getMessage(), e);
         } catch (Exception e) {
-            log.error("Unexpected error during geocoding", e);
+            log.error("Unexpected error during geocoding: {}", e.getMessage(), e);
             throw new MapboxApiException("Geocoding request failed", e);
         }
     }

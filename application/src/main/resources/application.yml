@@ -82,13 +82,13 @@ resilience4j:
   ratelimiter:
     configs:
       default:
-        limit-for-period: 600
-        limit-refresh-period: 60s
+        limit-for-period: 30
+        limit-refresh-period: 1s
         timeout-duration: 0s
     instances:
       mapbox:
-        limit-for-period: 600
-        limit-refresh-period: 60s
+        limit-for-period: 9 
+        limit-refresh-period: 1s
         timeout-duration: 0s
   retry:
     instances:

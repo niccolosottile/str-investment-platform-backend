@@ -37,6 +37,13 @@ public class RateLimitFilter extends OncePerRequestFilter {
             return;
         }
 
+        // Skip rate limiting for authenticated requests — JWT auth already secures these
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         // Get client IP address
         String clientIp = getClientIp(request);
         

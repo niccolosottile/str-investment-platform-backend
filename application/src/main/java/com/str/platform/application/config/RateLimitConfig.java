@@ -17,17 +17,27 @@ public class RateLimitConfig {
 
     /**
      * Default rate limiter for public API endpoints.
-     * Allows 100 requests per minute per IP address.
+     * 10 requests per second per IP.
      */
     @Bean
     public RateLimiterRegistry rateLimiterRegistry() {
-        RateLimiterConfig config = RateLimiterConfig.custom()
-            .limitForPeriod(100) // 100 requests
-            .limitRefreshPeriod(Duration.ofMinutes(1)) // per minute
-            .timeoutDuration(Duration.ofSeconds(5)) // wait up to 5s for permission
+        RateLimiterConfig defaultConfig = RateLimiterConfig.custom()
+            .limitForPeriod(10)
+            .limitRefreshPeriod(Duration.ofSeconds(1))
+            .timeoutDuration(Duration.ZERO)
             .build();
-        
-        return RateLimiterRegistry.of(config);
+
+        RateLimiterRegistry registry = RateLimiterRegistry.of(defaultConfig);
+
+        // Outbound Mapbox calls: free tier = 600/min = 10/s. Use 9/s to stay safely under.
+        RateLimiterConfig mapboxConfig = RateLimiterConfig.custom()
+            .limitForPeriod(9)
+            .limitRefreshPeriod(Duration.ofSeconds(1))
+            .timeoutDuration(Duration.ZERO)
+            .build();
+        registry.rateLimiter("mapbox", mapboxConfig);
+
+        return registry;
     }
 
     /**

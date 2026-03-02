@@ -61,7 +61,7 @@ public class LocationService {
      * @param limit Maximum number of results
      * @return List of matching locations
      */
-    @Cacheable(value = "location-search", key = "#query + '-' + #limit")
+    @Cacheable(value = "location-search", key = "#query + '-' + #limit", unless = "#result.isEmpty()")
     @Transactional
     public List<Location> searchLocations(String query, Integer limit) {
         log.info("Searching locations for query: {}", query);

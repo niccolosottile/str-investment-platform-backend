@@ -137,50 +137,60 @@ class LocationServiceTest {
     }
     
     private GeocodingResponse createGeocodingResponse() {
-        var feature = new GeocodingResponse.Feature();
-        feature.setPlaceName("Milan, Lombardy, Italy");
-        feature.setText("Milan");
-        feature.setCenter(List.of(MILAN_LNG, MILAN_LAT));
-        feature.setContext(createContextList());
-        feature.setBbox(List.of(9.04, 45.39, 9.28, 45.54));
-        
         var response = new GeocodingResponse();
-        response.setFeatures(List.of(feature));
+        response.setFeatures(List.of(createFeature("Milan", MILAN_LAT, MILAN_LNG)));
         return response;
     }
-    
+
     private GeocodingResponse createGeocodingResponseWithMultipleResults() {
-        var response = createGeocodingResponse();
+        var response = new GeocodingResponse();
         response.setFeatures(List.of(
-            response.getFeatures().get(0),
-            createFeature("Rome", 41.9028, 12.4964),
-            createFeature("Florence", 43.7696, 11.2558)
+            createFeature("Milan",    MILAN_LAT, MILAN_LNG),
+            createFeature("Rome",     41.9028,   12.4964),
+            createFeature("Florence", 43.7696,   11.2558)
         ));
         return response;
     }
-    
+
     private GeocodingResponse.Feature createFeature(String city, double lat, double lng) {
+        // Geometry — [longitude, latitude]
+        var geometry = new GeocodingResponse.Geometry();
+        geometry.setCoordinates(List.of(lng, lat));
+
+        // Context entries
+        var placeEntry = new GeocodingResponse.ContextEntry();
+        placeEntry.setName(city);
+
+        var regionEntry = new GeocodingResponse.ContextEntry();
+        regionEntry.setName("Lombardy");
+
+        var countryEntry = new GeocodingResponse.ContextEntry();
+        countryEntry.setName("Italy");
+
+        var context = new GeocodingResponse.ContextObject();
+        context.setPlace(placeEntry);
+        context.setRegion(regionEntry);
+        context.setCountry(countryEntry);
+
+        // Properties
+        var props = new GeocodingResponse.Properties();
+        props.setName(city);
+        props.setFullAddress(city + ", Lombardy, Italy");
+        props.setFeatureType("place");
+        props.setBbox(List.of(9.04, 45.39, 9.28, 45.54));
+        props.setContext(context);
+
+        var coordsObj = new GeocodingResponse.CoordinatesObj();
+        coordsObj.setLongitude(lng);
+        coordsObj.setLatitude(lat);
+        props.setCoordinates(coordsObj);
+
         var feature = new GeocodingResponse.Feature();
-        feature.setPlaceName(city + ", Italy");
-        feature.setText(city);
-        feature.setCenter(List.of(lng, lat));
-        feature.setContext(createContextList());
+        feature.setGeometry(geometry);
+        feature.setProperties(props);
         return feature;
     }
-    
-    private List<GeocodingResponse.Context> createContextList() {
-        var region = new GeocodingResponse.Context();
-        region.setText("Lombardy");
-        region.setId("region");
-        
-        var country = new GeocodingResponse.Context();
-        country.setText("Italy");
-        country.setId("country");
-        country.setShortCode("it");
-        
-        return List.of(region, country);
-    }
-    
+
     private GeocodingResponse createEmptyResponse() {
         var response = new GeocodingResponse();
         response.setFeatures(List.of());

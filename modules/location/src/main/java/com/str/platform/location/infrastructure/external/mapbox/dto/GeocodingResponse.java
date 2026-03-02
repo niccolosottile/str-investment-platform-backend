@@ -7,7 +7,7 @@ import lombok.Data;
 import java.util.List;
 
 /**
- * DTO for Mapbox Geocoding API response.
+ * DTO for Mapbox Search Geocoding API v6 response.
  * Docs: https://docs.mapbox.com/api/search/geocoding/
  */
 @Data
@@ -23,124 +23,145 @@ public class GeocodingResponse {
     @Data
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Feature {
-        
+
         @JsonProperty("id")
         private String id;
-
-        @JsonProperty("type")
-        private String type;
-
-        @JsonProperty("place_type")
-        private List<String> placeType;
-
-        @JsonProperty("relevance")
-        private Double relevance;
-
-        @JsonProperty("place_name")
-        private String placeName;
-
-        @JsonProperty("text")
-        private String text;
-
-        @JsonProperty("center")
-        private List<Double> center; // [longitude, latitude]
 
         @JsonProperty("geometry")
         private Geometry geometry;
 
-        @JsonProperty("context")
-        private List<Context> context;
-        
-        @JsonProperty("bbox")
-        private List<Double> bbox; // [minX, minY, maxX, maxY]
+        @JsonProperty("properties")
+        private Properties properties;
 
-        /**
-         * Get latitude from center coordinates
-         */
         public Double getLatitude() {
-            return center != null && center.size() > 1 ? center.get(1) : null;
+            if (geometry != null && geometry.getCoordinates() != null && geometry.getCoordinates().size() > 1) {
+                return geometry.getCoordinates().get(1);
+            }
+            if (properties != null && properties.getCoordinates() != null) {
+                return properties.getCoordinates().getLatitude();
+            }
+            return null;
         }
 
-        /**
-         * Get longitude from center coordinates
-         */
         public Double getLongitude() {
-            return center != null && !center.isEmpty() ? center.get(0) : null;
+            if (geometry != null && geometry.getCoordinates() != null && !geometry.getCoordinates().isEmpty()) {
+                return geometry.getCoordinates().get(0);
+            }
+            if (properties != null && properties.getCoordinates() != null) {
+                return properties.getCoordinates().getLongitude();
+            }
+            return null;
         }
 
-        /**
-         * Extract city from context
-         */
         public String getCity() {
-            if (placeType != null && placeType.contains("place")) {
-                return text;
+            if (properties == null) return null;
+            // For a place/locality feature, the name itself is the city
+            String featureType = properties.getFeatureType();
+            if ("place".equals(featureType) || "locality".equals(featureType)) {
+                return properties.getName();
             }
-            return findContextValue("place");
+            // Otherwise pull from context
+            if (properties.getContext() != null && properties.getContext().getPlace() != null) {
+                return properties.getContext().getPlace().getName();
+            }
+            return properties.getName();
         }
 
-        /**
-         * Extract region from context
-         */
         public String getRegion() {
-            return findContextValue("region");
+            if (properties == null || properties.getContext() == null) return null;
+            ContextObject ctx = properties.getContext();
+            // Prefer the province-level region (district), fall back to region
+            if (ctx.getDistrict() != null) return ctx.getDistrict().getName();
+            if (ctx.getRegion() != null) return ctx.getRegion().getName();
+            return null;
         }
 
-        /**
-         * Extract country from context
-         */
         public String getCountry() {
-            return findContextValue("country");
-        }
-        
-        /**
-         * Check if bounding box is available
-         */
-        public boolean hasBoundingBox() {
-            return bbox != null && bbox.size() == 4;
-        }
-        
-        /**
-         * Get bounding box as array [minX, minY, maxX, maxY]
-         */
-        public double[] getBoundingBox() {
-            if (!hasBoundingBox()) {
-                return null;
+            if (properties == null || properties.getContext() == null) return null;
+            if (properties.getContext().getCountry() != null) {
+                return properties.getContext().getCountry().getName();
             }
-            return new double[] {bbox.get(0), bbox.get(1), bbox.get(2), bbox.get(3)};
+            return null;
         }
 
-        private String findContextValue(String type) {
-            if (context == null) return null;
-            return context.stream()
-                .filter(c -> c.getId() != null && c.getId().startsWith(type))
-                .map(Context::getText)
-                .findFirst()
-                .orElse(null);
+        public String getPlaceName() {
+            return properties != null ? properties.getFullAddress() : null;
+        }
+
+        // Keep getText() for compatibility with LocationService
+        public String getText() {
+            return properties != null ? properties.getName() : null;
+        }
+
+        public boolean hasBoundingBox() {
+            return properties != null && properties.getBbox() != null && properties.getBbox().size() == 4;
+        }
+
+        public double[] getBoundingBox() {
+            if (!hasBoundingBox()) return null;
+            List<Double> b = properties.getBbox();
+            return new double[]{b.get(0), b.get(1), b.get(2), b.get(3)};
         }
     }
 
     @Data
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Geometry {
-        
         @JsonProperty("type")
         private String type;
-
         @JsonProperty("coordinates")
         private List<Double> coordinates; // [longitude, latitude]
     }
 
     @Data
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public static class Context {
-        
-        @JsonProperty("id")
-        private String id;
+    public static class Properties {
+        @JsonProperty("mapbox_id")
+        private String mapboxId;
+        @JsonProperty("feature_type")
+        private String featureType;
+        @JsonProperty("full_address")
+        private String fullAddress;
+        @JsonProperty("name")
+        private String name;
+        @JsonProperty("coordinates")
+        private CoordinatesObj coordinates;
+        @JsonProperty("bbox")
+        private List<Double> bbox;
+        @JsonProperty("context")
+        private ContextObject context;
+    }
 
-        @JsonProperty("text")
-        private String text;
+    @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class CoordinatesObj {
+        @JsonProperty("longitude")
+        private Double longitude;
+        @JsonProperty("latitude")
+        private Double latitude;
+    }
 
-        @JsonProperty("short_code")
-        private String shortCode;
+    @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class ContextObject {
+        @JsonProperty("place")
+        private ContextEntry place;
+        @JsonProperty("locality")
+        private ContextEntry locality;
+        @JsonProperty("district")
+        private ContextEntry district;
+        @JsonProperty("region")
+        private ContextEntry region;
+        @JsonProperty("country")
+        private ContextEntry country;
+    }
+
+    @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class ContextEntry {
+        @JsonProperty("mapbox_id")
+        private String mapboxId;
+        @JsonProperty("name")
+        private String name;
     }
 }
