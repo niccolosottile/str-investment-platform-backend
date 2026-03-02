@@ -11,6 +11,7 @@ public class SupabaseProperties {
     private String jwkSetUri;
     private String jwtIssuer;
     private String audience;
+    private String anonKey;
 
     public String getUrl() {
         return url;
@@ -42,5 +43,13 @@ public class SupabaseProperties {
 
     public void setAudience(String audience) {
         this.audience = audience;
+    }
+
+    public String getAnonKey() {
+        return anonKey;
+    }
+
+    public void setAnonKey(String anonKey) {
+        this.anonKey = anonKey;
     }
 }

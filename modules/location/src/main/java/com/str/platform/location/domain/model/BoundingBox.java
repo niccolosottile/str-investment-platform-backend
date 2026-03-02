@@ -1,5 +1,7 @@
 package com.str.platform.location.domain.model;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
@@ -21,7 +23,9 @@ public class BoundingBox {
     /**
      * Create a bounding box from Mapbox format [minX, minY, maxX, maxY]
      */
-    public BoundingBox(double swLng, double swLat, double neLng, double neLat) {
+    @JsonCreator
+    public BoundingBox(@JsonProperty("southWestLongitude") double swLng, @JsonProperty("southWestLatitude") double swLat,
+                       @JsonProperty("northEastLongitude") double neLng, @JsonProperty("northEastLatitude") double neLat) {
         if (swLng > neLng) {
             throw new IllegalArgumentException("Southwest longitude must be less than northeast longitude");
         }

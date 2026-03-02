@@ -2,7 +2,9 @@ package com.str.platform.application.exception;
 
 import com.str.platform.shared.domain.exception.DomainException;
 import com.str.platform.shared.domain.exception.EntityNotFoundException;
+import io.github.resilience4j.ratelimiter.RequestNotPermitted;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -127,6 +129,34 @@ public class GlobalExceptionHandler {
             .body(error);
     }
     
+    /**
+     * Handle Resilience4j rate limiter rejection → 429 Too Many Requests
+     */
+    @ExceptionHandler(RequestNotPermitted.class)
+    public ResponseEntity<ErrorResponse> handleRequestNotPermitted(
+            RequestNotPermitted ex,
+            WebRequest request
+    ) {
+        log.warn("Rate limiter rejected request: {}", ex.getMessage());
+
+        ErrorResponse error = ErrorResponse.builder()
+            .timestamp(Instant.now())
+            .status(HttpStatus.TOO_MANY_REQUESTS.value())
+            .error("Too Many Requests")
+            .message("Rate limit exceeded. Please wait before retrying.")
+            .path(extractPath(request))
+            .correlationId(UUID.randomUUID().toString())
+            .build();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Retry-After", "10");
+
+        return ResponseEntity
+            .status(HttpStatus.TOO_MANY_REQUESTS)
+            .headers(headers)
+            .body(error);
+    }
+
     /**
      * Handle all other exceptions → 500 Internal Server Error
      */

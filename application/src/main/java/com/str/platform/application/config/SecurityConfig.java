@@ -13,10 +13,14 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.oauth2.core.OAuth2TokenValidator;
+import org.springframework.http.HttpRequest;
+import org.springframework.http.client.ClientHttpRequestExecution;
+import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
@@ -110,7 +114,21 @@ public class SecurityConfig {
             throw new IllegalStateException("supabase.jwt-issuer must be configured");
         }
 
-        NimbusJwtDecoder decoder = NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
+        // Supabase requires the anon key as "apikey" header when fetching JWKs
+        RestTemplate restTemplate = new RestTemplate();
+        String anonKey = supabaseProperties.getAnonKey();
+        if (anonKey != null && !anonKey.isBlank()) {
+            restTemplate.setInterceptors(List.of((HttpRequest request, byte[] body,
+                    ClientHttpRequestExecution execution) -> {
+                request.getHeaders().set("apikey", anonKey);
+                return execution.execute(request, body);
+            }));
+        }
+
+        NimbusJwtDecoder decoder = NimbusJwtDecoder.withJwkSetUri(jwkSetUri)
+            .jwsAlgorithm(SignatureAlgorithm.ES256)
+            .restOperations(restTemplate)
+            .build();
 
         OAuth2TokenValidator<Jwt> issuerValidator = JwtValidators.createDefaultWithIssuer(issuer);
         OAuth2TokenValidator<Jwt> audienceValidator = new AudienceValidator(supabaseProperties.getAudience());

@@ -1,5 +1,7 @@
 package com.str.platform.location.domain.model;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.str.platform.shared.domain.common.ValueObject;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -13,8 +15,9 @@ public class Coordinates extends ValueObject {
     
     private final double latitude;
     private final double longitude;
-    
-    public Coordinates(double latitude, double longitude) {
+
+    @JsonCreator
+    public Coordinates(@JsonProperty("latitude") double latitude, @JsonProperty("longitude") double longitude) {
         validateLatitude(latitude);
         validateLongitude(longitude);
         this.latitude = latitude;

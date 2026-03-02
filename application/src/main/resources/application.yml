@@ -51,9 +51,10 @@ spring:
 
 supabase:
   url: ${SUPABASE_URL:}
-  jwk-set-uri: ${SUPABASE_JWK_SET_URI:${SUPABASE_URL:}/auth/v1/keys}
+  jwk-set-uri: ${SUPABASE_JWK_SET_URI:${SUPABASE_URL:}/auth/v1/.well-known/jwks.json}
   jwt-issuer: ${SUPABASE_JWT_ISSUER:${SUPABASE_URL:}/auth/v1}
   audience: ${SUPABASE_JWT_AUDIENCE:authenticated}
+  anon-key: ${SUPABASE_ANON_KEY:}
 
 server:
   port: 8080
@@ -79,6 +80,11 @@ batch:
 
 resilience4j:
   ratelimiter:
+    configs:
+      default:
+        limit-for-period: 600
+        limit-refresh-period: 60s
+        timeout-duration: 0s
     instances:
       mapbox:
         limit-for-period: 600
@@ -89,6 +95,8 @@ resilience4j:
       mapbox:
         max-attempts: 3
         wait-duration: 1s
+        ignore-exceptions:
+          - io.github.resilience4j.ratelimiter.RequestNotPermitted
   circuitbreaker:
     instances:
       mapbox:

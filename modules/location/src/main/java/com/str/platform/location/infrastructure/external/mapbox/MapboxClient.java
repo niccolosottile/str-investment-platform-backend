@@ -3,8 +3,9 @@ package com.str.platform.location.infrastructure.external.mapbox;
 import com.str.platform.location.infrastructure.external.mapbox.dto.DirectionsResponse;
 import com.str.platform.location.infrastructure.external.mapbox.dto.GeocodingResponse;
 import com.str.platform.shared.domain.exception.DomainException;
-import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
+import org.springframework.web.util.UriComponentsBuilder;
 import io.github.resilience4j.retry.annotation.Retry;
+import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -59,17 +60,20 @@ public class MapboxClient {
             throw new IllegalArgumentException("Query cannot be null or empty");
         }
 
-        String url = String.format("%s/%s.json", GEOCODING_BASE_URL, encodeQuery(query));
+        String url = UriComponentsBuilder
+                .fromHttpUrl(GEOCODING_BASE_URL + "/{query}.json")
+                .queryParam("access_token", accessToken)
+                .queryParam("limit", limit != null ? limit : 5)
+                .queryParam("types", "place,region,country")
+                .queryParam("language", "en")
+                .build(false)
+                .expand(query)
+                .encode()
+                .toUriString();
 
         try {
             return webClient.get()
-                .uri(uriBuilder -> uriBuilder
-                    .path(url)
-                    .queryParam("access_token", accessToken)
-                    .queryParam("limit", limit != null ? limit : 5)
-                    .queryParam("types", "place,region,country") // Restrict to cities/regions
-                    .queryParam("language", "en")
-                    .build())
+                .uri(url)
                 .retrieve()
                 .bodyToMono(GeocodingResponse.class)
                 .timeout(REQUEST_TIMEOUT)
@@ -101,16 +105,19 @@ public class MapboxClient {
         log.debug("Getting directions from {},{} to {},{}", startLng, startLat, endLng, endLat);
 
         String coordinates = String.format("%f,%f;%f,%f", startLng, startLat, endLng, endLat);
-        String url = String.format("%s/driving/%s", DIRECTIONS_BASE_URL, coordinates);
+        String url = UriComponentsBuilder
+                .fromHttpUrl(DIRECTIONS_BASE_URL + "/driving/{coords}")
+                .queryParam("access_token", accessToken)
+                .queryParam("geometries", "geojson")
+                .queryParam("overview", "simplified")
+                .build(false)
+                .expand(coordinates)
+                .encode()
+                .toUriString();
 
         try {
             return webClient.get()
-                .uri(uriBuilder -> uriBuilder
-                    .path(url)
-                    .queryParam("access_token", accessToken)
-                    .queryParam("geometries", "geojson")
-                    .queryParam("overview", "simplified")
-                    .build())
+                .uri(url)
                 .retrieve()
                 .bodyToMono(DirectionsResponse.class)
                 .timeout(REQUEST_TIMEOUT)
@@ -165,10 +172,6 @@ public class MapboxClient {
                     }
                 }
             ));
-    }
-
-    private String encodeQuery(String query) {
-        return java.net.URLEncoder.encode(query, java.nio.charset.StandardCharsets.UTF_8);
     }
 
     /**

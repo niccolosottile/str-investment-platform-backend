@@ -1,5 +1,7 @@
 package com.str.platform.location.domain.model;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
@@ -14,8 +16,10 @@ public class Address {
     private final String region;
     private final String country;
     private final String fullAddress;
-    
-    public Address(String city, String region, String country, String fullAddress) {
+
+    @JsonCreator
+    public Address(@JsonProperty("city") String city, @JsonProperty("region") String region,
+                   @JsonProperty("country") String country, @JsonProperty("fullAddress") String fullAddress) {
         if (city == null || city.isBlank()) {
             throw new IllegalArgumentException("City cannot be empty");
         }
