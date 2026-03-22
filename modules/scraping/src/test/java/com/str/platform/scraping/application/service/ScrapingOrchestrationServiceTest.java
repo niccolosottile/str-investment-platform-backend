@@ -119,12 +119,12 @@ class ScrapingOrchestrationServiceTest {
         @Test
         void shouldCreateBothDeepScrapeAndPriceSampleJobs() {
             // Given
-            ScrapingJob job = new ScrapingJob(LOCATION_ID, ScrapingJob.Platform.AIRBNB);
-            job.restore(JOB_ID, null, null);
-            ScrapingJobEntity entity = createEntity();
-            
             when(scrapingJobFactory.createJob(eq(LOCATION_ID), any()))
-                .thenReturn(new ScrapingJobFactory.CreatedJob(job, entity));
+                .thenAnswer(invocation -> {
+                    ScrapingJob job = new ScrapingJob(LOCATION_ID, invocation.getArgument(1));
+                    job.restore(UUID.randomUUID(), null, null);
+                    return new ScrapingJobFactory.CreatedJob(job, createEntity());
+                });
             when(priceSamplingPlanner.generatePriceSamplePeriods())
                 .thenReturn(createSamplePeriods(2));
             when(priceSamplingPlanner.defaultSearchRange())
@@ -132,13 +132,16 @@ class ScrapingOrchestrationServiceTest {
                     java.time.LocalDate.now().plusDays(30),
                     java.time.LocalDate.now().plusDays(37)
                 ));
-            when(scrapingJobRepository.save(any())).thenReturn(entity);
+            when(scrapingJobRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
             // When
             List<ScrapingJob> results = sut.orchestrateLocationAnalysis(LOCATION_ID);
 
             // Then
-            assertThat(results).isNotEmpty();
+            assertThat(results).hasSize(3);
+            assertThat(results)
+                .extracting(ScrapingJob::getPlatform)
+                .containsOnly(ScrapingJob.Platform.AIRBNB);
             verify(priceSamplingPlanner).generatePriceSamplePeriods();
         }
     }
@@ -148,23 +151,26 @@ class ScrapingOrchestrationServiceTest {
     class SchedulePriceSampling {
 
         @Test
-        void shouldCreatePriceSampleJobsForAllPlatforms() {
+        void shouldCreatePriceSampleJobsForAirbnbOnlyLaunchPath() {
             // Given
-            ScrapingJob job = new ScrapingJob(LOCATION_ID, ScrapingJob.Platform.AIRBNB);
-            job.restore(JOB_ID, null, null);
-            ScrapingJobEntity entity = createEntity();
-            
             when(priceSamplingPlanner.generatePriceSamplePeriods())
                 .thenReturn(createSamplePeriods(2));
             when(scrapingJobFactory.createJob(eq(LOCATION_ID), any()))
-                .thenReturn(new ScrapingJobFactory.CreatedJob(job, entity));
-            when(scrapingJobRepository.save(any())).thenReturn(entity);
+                .thenAnswer(invocation -> {
+                    ScrapingJob job = new ScrapingJob(LOCATION_ID, invocation.getArgument(1));
+                    job.restore(UUID.randomUUID(), null, null);
+                    return new ScrapingJobFactory.CreatedJob(job, createEntity());
+                });
+            when(scrapingJobRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
             // When
             List<ScrapingJob> results = sut.schedulePriceSampling(LOCATION_ID);
 
             // Then
-            assertThat(results).isNotEmpty();
+            assertThat(results).hasSize(2);
+            assertThat(results)
+                .extracting(ScrapingJob::getPlatform)
+                .containsOnly(ScrapingJob.Platform.AIRBNB);
             verify(priceSamplingPlanner).generatePriceSamplePeriods();
         }
     }

@@ -26,6 +26,10 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ScrapingOrchestrationService {
 
+    private static final List<ScrapingJob.Platform> INITIAL_SUPPORTED_PLATFORMS = List.of(
+        ScrapingJob.Platform.AIRBNB
+    );
+
     private final JpaScrapingJobRepository scrapingJobRepository;
     private final ScrapingJobEntityMapper scrapingJobMapper;
     private final ScrapingJobFactory scrapingJobFactory;
@@ -71,7 +75,7 @@ public class ScrapingOrchestrationService {
     }
 
     /**
-     * Initiate deep scraping (FULL_PROFILE) for all platforms.
+     * Initiate deep scraping (FULL_PROFILE) for currently supported launch platforms.
      */
     @Transactional
     public List<ScrapingJob> initiateDeepScrape(UUID locationId) {
@@ -94,7 +98,7 @@ public class ScrapingOrchestrationService {
         List<ScrapingJob> jobs = new ArrayList<>();
 
         for (PriceSamplingPlanner.DateRange period : periods) {
-            for (ScrapingJob.Platform platform : ScrapingJob.Platform.values()) {
+            for (ScrapingJob.Platform platform : getSupportedPlatformsForLaunch()) {
                 try {
                     ScrapingJob job = createPriceSampleJob(locationId, platform, period);
                     jobs.add(job);
@@ -172,17 +176,20 @@ public class ScrapingOrchestrationService {
     }
 
     /**
-     * Create scraping jobs for all platforms for an existing Location with specific job type.
+     * Create scraping jobs for currently supported launch platforms for an existing Location.
      */
     @Transactional
     public List<ScrapingJob> createScrapingJobsForAllPlatformsForLocation(
             UUID locationId,
             com.str.platform.scraping.domain.model.JobType jobType
     ) {
-        log.info("Creating {} jobs for all platforms for locationId={}", jobType, locationId);
+        List<ScrapingJob.Platform> supportedPlatforms = getSupportedPlatformsForLaunch();
+
+        log.info("Creating {} jobs for supported platforms {} for locationId={}",
+            jobType, supportedPlatforms, locationId);
 
         List<ScrapingJob> jobs = new ArrayList<>();
-        for (ScrapingJob.Platform platform : ScrapingJob.Platform.values()) {
+        for (ScrapingJob.Platform platform : supportedPlatforms) {
             try {
                 jobs.add(createScrapingJobForLocation(locationId, platform, jobType));
             } catch (Exception e) {
@@ -202,6 +209,10 @@ public class ScrapingOrchestrationService {
         return scrapingJobRepository.findById(jobId)
             .map(scrapingJobMapper::toDomain)
             .orElseThrow(() -> new EntityNotFoundException("ScrapingJob", jobId));
+    }
+
+    private List<ScrapingJob.Platform> getSupportedPlatformsForLaunch() {
+        return INITIAL_SUPPORTED_PLATFORMS;
     }
 
     /**
