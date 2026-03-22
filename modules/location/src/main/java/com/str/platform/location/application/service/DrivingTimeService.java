@@ -4,6 +4,7 @@ import com.str.platform.location.domain.model.Coordinates;
 import com.str.platform.location.domain.model.Distance;
 import com.str.platform.location.infrastructure.external.mapbox.MapboxClient;
 import com.str.platform.location.infrastructure.external.mapbox.dto.DirectionsResponse;
+import io.github.resilience4j.ratelimiter.RequestNotPermitted;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
@@ -70,6 +71,12 @@ public class DrivingTimeService {
 
             return Distance.fromApi(distanceKm, (int) durationMinutes);
 
+        } catch (RequestNotPermitted e) {
+            log.warn("Mapbox directions rate-limited, falling back to heuristic driving time");
+            Coordinates origin = new Coordinates(originLat, originLng);
+            Coordinates dest = new Coordinates(destLat, destLng);
+            double straightLineKm = origin.distanceTo(dest);
+            return Distance.fromStraightLine(straightLineKm);
         } catch (Exception e) {
             log.error("Error calculating driving time, falling back to Haversine", e);
             // Calculate straight line distance using Haversine formula

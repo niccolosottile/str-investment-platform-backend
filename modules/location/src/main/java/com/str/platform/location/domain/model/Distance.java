@@ -1,5 +1,7 @@
 package com.str.platform.location.domain.model;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
@@ -19,7 +21,12 @@ public class Distance {
         HEURISTIC   // Calculated estimate
     }
     
-    public Distance(double kilometers, Integer drivingTimeMinutes, DrivingTimeSource source) {
+    @JsonCreator
+    public Distance(
+        @JsonProperty("kilometers") double kilometers,
+        @JsonProperty("drivingTimeMinutes") Integer drivingTimeMinutes,
+        @JsonProperty("source") DrivingTimeSource source
+    ) {
         if (kilometers < 0) {
             throw new IllegalArgumentException("Distance cannot be negative");
         }
