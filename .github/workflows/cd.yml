@@ -5,29 +5,88 @@ on:
     workflows: ["CI"]
     types:
       - completed
-    branches: [main]
+    branches: [main, master]
   workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: backend-production-deploy
+  cancel-in-progress: true
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push') }}
+    env:
+      GCP_PROJECT_ID: str-investment-platform
+      GCP_REGION: europe-west1
+      CLOUD_RUN_SERVICE: str-backend
+      GAR_REPOSITORY: ${{ vars.GAR_REPOSITORY || 'str-images' }}
+      GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+      GCP_SERVICE_ACCOUNT_EMAIL: ${{ vars.GCP_SERVICE_ACCOUNT_EMAIL }}
+      IMAGE_TAG: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
       
-      - name: Deploy to Railway
+      - name: Validate deployment configuration
         run: |
-          echo "Railway deployment triggered"
-          echo "Railway will detect Dockerfile and deploy automatically"
-          echo "Set up Railway GitHub integration for automatic deploys"
-        
-      # Uncomment when Railway token is configured
-      # - name: Install Railway CLI
-      #   run: npm install -g @railway/cli
-      # 
-      # - name: Deploy
-      #   env:
-      #     RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-      #   run: railway up
+          missing=()
+
+          [[ -z "$GCP_PROJECT_ID" ]] && missing+=("GCP_PROJECT_ID")
+          [[ -z "$GAR_REPOSITORY" ]] && missing+=("GAR_REPOSITORY")
+          [[ -z "$GCP_WORKLOAD_IDENTITY_PROVIDER" ]] && missing+=("GCP_WORKLOAD_IDENTITY_PROVIDER")
+          [[ -z "$GCP_SERVICE_ACCOUNT_EMAIL" ]] && missing+=("GCP_SERVICE_ACCOUNT_EMAIL")
+
+          if (( ${#missing[@]} > 0 )); then
+            printf 'Missing required GitHub repository variables: %s\n' "${missing[*]}"
+            exit 1
+          fi
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.GCP_SERVICE_ACCOUNT_EMAIL }}
+
+      - name: Set up gcloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.GCP_PROJECT_ID }}
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker "${GCP_REGION}-docker.pkg.dev" --quiet
+
+      - name: Build container image
+        env:
+          IMAGE_URI: ${{ format('{0}-docker.pkg.dev/{1}/{2}/{3}:{4}', env.GCP_REGION, env.GCP_PROJECT_ID, env.GAR_REPOSITORY, env.CLOUD_RUN_SERVICE, env.IMAGE_TAG) }}
+        run: docker build -t "$IMAGE_URI" .
+
+      - name: Push container image
+        env:
+          IMAGE_URI: ${{ format('{0}-docker.pkg.dev/{1}/{2}/{3}:{4}', env.GCP_REGION, env.GCP_PROJECT_ID, env.GAR_REPOSITORY, env.CLOUD_RUN_SERVICE, env.IMAGE_TAG) }}
+        run: docker push "$IMAGE_URI"
+
+      - name: Deploy to Cloud Run
+        env:
+          IMAGE_URI: ${{ format('{0}-docker.pkg.dev/{1}/{2}/{3}:{4}', env.GCP_REGION, env.GCP_PROJECT_ID, env.GAR_REPOSITORY, env.CLOUD_RUN_SERVICE, env.IMAGE_TAG) }}
+        run: |
+          gcloud run deploy "$CLOUD_RUN_SERVICE" \
+            --image "$IMAGE_URI" \
+            --project "$GCP_PROJECT_ID" \
+            --region "$GCP_REGION" \
+            --platform managed \
+            --quiet
+
+      - name: Show deployed URL
+        run: |
+          gcloud run services describe "$CLOUD_RUN_SERVICE" \
+            --project "$GCP_PROJECT_ID" \
+            --region "$GCP_REGION" \
+            --format='value(status.url)'
