@@ -8,6 +8,7 @@ import com.str.platform.scraping.domain.model.Property;
 import com.str.platform.shared.domain.exception.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import com.str.platform.shared.domain.exception.ValidationException;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
@@ -67,7 +68,9 @@ public class AnalysisOrchestrationService {
         
         if (properties.isEmpty()) {
             log.error("No properties found for location {}", locationId);
-            throw new IllegalStateException("Cannot perform analysis: No properties available for location " + locationId);
+            throw new ValidationException(
+                "This market is not ready for analysis yet. We are still collecting enough live property data to generate a reliable investment outlook. Please try another location for now."
+            );
         }
         
         MarketAnalysis marketAnalysis = marketAnalysisService.analyzeMarket(
@@ -77,8 +80,9 @@ public class AnalysisOrchestrationService {
         
         if (marketAnalysis == null) {
             log.error("Market analysis returned null for location {} - insufficient scraped data", locationId);
-            throw new IllegalStateException("Cannot perform analysis: Insufficient scraped data for location " + locationId + 
-                ". Please ensure scraping has been completed for this location.");
+            throw new ValidationException(
+                "This market is not ready for analysis yet. We do not have enough live pricing and availability data to produce a reliable result. Please try another location for now."
+            );
         }
         
         InvestmentMetrics metrics = investmentAnalysisService.calculateMetrics(

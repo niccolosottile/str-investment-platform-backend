@@ -12,6 +12,7 @@ import com.str.platform.shared.domain.exception.EntityNotFoundException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import com.str.platform.shared.domain.exception.ValidationException;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -101,8 +102,8 @@ class AnalysisOrchestrationServiceTest {
                 InvestmentConfiguration.InvestmentGoal.STABLE_INCOME,
                 false
             ))
-            .isInstanceOf(IllegalStateException.class)
-            .hasMessageContaining("No properties available");
+            .isInstanceOf(ValidationException.class)
+            .hasMessageContaining("not ready for analysis yet");
         }
 
         @Test
@@ -120,8 +121,8 @@ class AnalysisOrchestrationServiceTest {
                 InvestmentConfiguration.InvestmentGoal.STABLE_INCOME,
                 false
             ))
-            .isInstanceOf(IllegalStateException.class)
-            .hasMessageContaining("Insufficient scraped data");
+            .isInstanceOf(ValidationException.class)
+            .hasMessageContaining("not ready for analysis yet");
         }
 
         @Test
