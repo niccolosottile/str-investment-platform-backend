@@ -87,14 +87,25 @@ public class RabbitMQConfig {
     }
     
     /**
-     * Bind result queue to exchange (handles both completed and failed events)
+     * Bind result queue to completed events.
      */
     @Bean
-    public Binding scrapingResultBinding(Queue scrapingResultQueue, TopicExchange scrapingExchange) {
+    public Binding scrapingResultCompletedBinding(Queue scrapingResultQueue, TopicExchange scrapingExchange) {
         return BindingBuilder
             .bind(scrapingResultQueue)
             .to(scrapingExchange)
-            .with("scraping.job.*"); // Matches completed and failed
+            .with(SCRAPING_RESULT_ROUTING_KEY);
+    }
+
+    /**
+     * Bind result queue to failed events.
+     */
+    @Bean
+    public Binding scrapingResultFailedBinding(Queue scrapingResultQueue, TopicExchange scrapingExchange) {
+        return BindingBuilder
+            .bind(scrapingResultQueue)
+            .to(scrapingExchange)
+            .with(SCRAPING_FAILED_ROUTING_KEY);
     }
     
     /**
