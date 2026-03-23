@@ -176,12 +176,6 @@ public class ScrapingResultConsumer {
             throw e;
         }
     }
-
-    @RabbitHandler(isDefault = true)
-    public void handleUnexpectedMessage(Object payload) {
-        log.warn("Ignoring unexpected message on scraping result queue: payloadType={}",
-            payload != null ? payload.getClass().getName() : "null");
-    }
     
     /**
      * Create new property entity from event data.
