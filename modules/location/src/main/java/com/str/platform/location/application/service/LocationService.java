@@ -14,6 +14,7 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -160,11 +161,16 @@ public class LocationService {
      */
     @Transactional
     public Location updateScrapingData(UUID locationId, int propertyCount) {
+        return updateScrapingData(locationId, propertyCount, null);
+    }
+
+    @Transactional
+    public Location updateScrapingData(UUID locationId, int propertyCount, BigDecimal averagePrice) {
         log.info("Updating scraped data for location {}: {} properties", 
             locationId, propertyCount);
 
         Location location = getById(locationId);
-        location.updateScrapingData(propertyCount, java.time.LocalDateTime.now());
+        location.updateScrapingData(propertyCount, java.time.LocalDateTime.now(), averagePrice);
         
         return locationRepository.save(location);
     }

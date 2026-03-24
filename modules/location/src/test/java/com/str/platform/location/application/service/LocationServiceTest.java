@@ -15,7 +15,10 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -133,6 +136,29 @@ class LocationServiceTest {
                 .hasSize(2)
                 .extracting(loc -> loc.getAddress().getCity())
                 .containsExactly("Rome", "Florence");
+        }
+    }
+
+    @Nested
+    @DisplayName("Scraping Metadata Update")
+    class ScrapingMetadataUpdate {
+
+        @Test
+        void shouldUpdateLocationScrapingMetadataIncludingAveragePrice() {
+            // Given
+            UUID locationId = UUID.randomUUID();
+            Location location = createLocation("Milan");
+            when(locationRepository.findById(locationId)).thenReturn(Optional.of(location));
+            when(locationRepository.save(location)).thenReturn(location);
+
+            // When
+            Location updated = sut.updateScrapingData(locationId, 13, new BigDecimal("127.30"));
+
+            // Then
+            assertThat(updated.getPropertyCount()).isEqualTo(13);
+            assertThat(updated.getAveragePrice()).isEqualByComparingTo("127.30");
+            assertThat(updated.getLastScraped()).isNotNull();
+            verify(locationRepository).save(location);
         }
     }
     

@@ -58,16 +58,11 @@ public class LocationEntityMapper {
             entity.getUpdatedAt() != null ? entity.getUpdatedAt().atZone(ZoneId.systemDefault()).toLocalDateTime() : null
         );
 
-        // Set additional metadata - convert Instant to LocalDateTime
-        if (entity.getLastScraped() != null && entity.getPropertyCount() != null) {
-            java.time.LocalDateTime lastScraped = java.time.LocalDateTime.ofInstant(
-                entity.getLastScraped(), 
-                java.time.ZoneId.systemDefault()
-            );
-            location.updateScrapingData(
-                entity.getPropertyCount(),
-                lastScraped
-            );
+        if (entity.getLastScraped() != null || entity.getPropertyCount() != null || entity.getAveragePrice() != null) {
+            java.time.LocalDateTime lastScraped = entity.getLastScraped() != null
+                ? java.time.LocalDateTime.ofInstant(entity.getLastScraped(), java.time.ZoneId.systemDefault())
+                : null;
+            location.restoreScrapingData(entity.getPropertyCount(), lastScraped, entity.getAveragePrice());
         }
 
         return location;
@@ -94,7 +89,7 @@ public class LocationEntityMapper {
                 ? domain.getLastScraped().atZone(java.time.ZoneId.systemDefault()).toInstant()
                 : null)
             .propertyCount(domain.getPropertyCount())
-            .averagePrice(null);
+            .averagePrice(domain.getAveragePrice());
         
         // Add bounding box if available
         if (domain.getBoundingBox() != null) {
@@ -137,7 +132,7 @@ public class LocationEntityMapper {
             ? domain.getLastScraped().atZone(java.time.ZoneId.systemDefault()).toInstant()
             : null);
         entity.setPropertyCount(domain.getPropertyCount());
-        entity.setAveragePrice(null);
+        entity.setAveragePrice(domain.getAveragePrice());
     }
 
     private LocationEntity.DataQuality mapDataQuality(Location.DataQuality domainQuality) {

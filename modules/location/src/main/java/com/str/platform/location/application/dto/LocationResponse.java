@@ -67,7 +67,7 @@ public class LocationResponse {
             .fullAddress(location.getAddress().getFullAddress())
             .dataQuality(location.getDataQuality().name())
             .propertyCount(location.getPropertyCount())
-            .averagePrice(null)
+            .averagePrice(location.getAveragePrice() != null ? location.getAveragePrice().doubleValue() : null)
             .lastScraped(location.getLastScraped() != null 
                 ? location.getLastScraped().atZone(java.time.ZoneId.systemDefault()).toInstant()
                 : null)

@@ -90,11 +90,13 @@ class LocationEntityMapperTest {
             var lastScraped = Instant.now().minusSeconds(3600);
             entity.setLastScraped(lastScraped);
             entity.setPropertyCount(42);
+            entity.setAveragePrice(new BigDecimal("145.25"));
 
             var domain = mapper.toDomain(entity);
 
             assertThat(domain.getLastScraped()).isNotNull();
             assertThat(domain.getPropertyCount()).isEqualTo(42);
+            assertThat(domain.getAveragePrice()).isEqualByComparingTo("145.25");
         }
 
         @Test
@@ -140,11 +142,12 @@ class LocationEntityMapperTest {
         @Test
         void shouldMapDataQualityEnum() {
             var domain = createBasicLocation();
-            domain.updateScrapingData(100, LocalDateTime.now());
+            domain.updateScrapingData(100, LocalDateTime.now(), new BigDecimal("118.40"));
 
             var entity = mapper.toEntity(domain);
 
             assertThat(entity.getDataQuality()).isEqualTo(LocationEntity.DataQuality.HIGH);
+            assertThat(entity.getAveragePrice()).isEqualByComparingTo("118.40");
         }
 
         @Test
@@ -164,6 +167,7 @@ class LocationEntityMapperTest {
             var originalEntity = createLocationEntityWithBoundingBox();
             originalEntity.setLastScraped(Instant.now());
             originalEntity.setPropertyCount(50);
+            originalEntity.setAveragePrice(new BigDecimal("150.00"));
 
             var domain = mapper.toDomain(originalEntity);
             var mappedEntity = mapper.toEntity(domain);
@@ -173,6 +177,7 @@ class LocationEntityMapperTest {
             assertThat(mappedEntity.getCity()).isEqualTo(originalEntity.getCity());
             assertThat(mappedEntity.getBoundingBoxSwLng()).isEqualByComparingTo(originalEntity.getBoundingBoxSwLng());
             assertThat(mappedEntity.getBoundingBoxNeLat()).isEqualByComparingTo(originalEntity.getBoundingBoxNeLat());
+            assertThat(mappedEntity.getAveragePrice()).isEqualByComparingTo(originalEntity.getAveragePrice());
         }
     }
 

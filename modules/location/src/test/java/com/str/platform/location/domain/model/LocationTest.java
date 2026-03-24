@@ -5,6 +5,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.*;
@@ -38,6 +39,7 @@ class LocationTest {
                     assertThat(loc.getAddress()).isEqualTo(address);
                     assertThat(loc.getDataQuality()).isEqualTo(Location.DataQuality.LOW);
                     assertThat(loc.getPropertyCount()).isEqualTo(0);
+                    assertThat(loc.getAveragePrice()).isNull();
                     assertThat(loc.getLastScraped()).isNull();
                 });
         }
@@ -97,6 +99,19 @@ class LocationTest {
             assertThat(location.getDataQuality()).isEqualTo(Location.DataQuality.HIGH);
             assertThat(location.getPropertyCount()).isEqualTo(75);
             assertThat(location.getLastScraped()).isEqualTo(scrapedAt);
+        }
+
+        @Test
+        void shouldStoreAveragePriceWhenUpdatingScrapingData() {
+            // Given
+            LocalDateTime scrapedAt = LocalDateTime.now().minusHours(2);
+            BigDecimal averagePrice = new BigDecimal("132.50");
+
+            // When
+            location.updateScrapingData(25, scrapedAt, averagePrice);
+
+            // Then
+            assertThat(location.getAveragePrice()).isEqualByComparingTo(averagePrice);
         }
         
         @Test

@@ -1,5 +1,6 @@
 package com.str.platform.scraping.infrastructure.messaging;
 
+import com.str.platform.location.application.service.LocationService;
 import com.str.platform.scraping.domain.event.ScrapingJobCompletedEvent;
 import com.str.platform.scraping.domain.event.ScrapingJobFailedEvent;
 import com.str.platform.scraping.domain.model.PropertyAvailability;
@@ -23,6 +24,8 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -43,6 +46,7 @@ public class ScrapingResultConsumer {
     private final JpaPropertyRepository propertyRepository;
     private final JpaPropertyAvailabilityRepository availabilityRepository;
     private final JpaPriceSampleRepository priceSampleRepository;
+    private final LocationService locationService;
     private final ApplicationEventPublisher eventPublisher;
     private final ScrapingMetricsService scrapingMetricsService;
     
@@ -84,6 +88,8 @@ public class ScrapingResultConsumer {
             int savedCount = 0;
             int availabilitySaved = 0;
             int priceSamplesSaved = 0;
+            BigDecimal totalSamplePrice = BigDecimal.ZERO;
+            int pricedPropertiesCount = 0;
             
             for (ScrapingJobCompletedEvent.PropertyData propData : event.getProperties()) {
                 try {
@@ -118,6 +124,8 @@ public class ScrapingResultConsumer {
                     if (propData.getPriceSample() != null) {
                         savePriceSample(property.getId(), propData.getPriceSample());
                         priceSamplesSaved++;
+                        totalSamplePrice = totalSamplePrice.add(propData.getPriceSample().getPrice());
+                        pricedPropertiesCount++;
                         log.debug("Saved price sample for property: {}", propData.getPlatformId());
                     }
                     
@@ -129,6 +137,12 @@ public class ScrapingResultConsumer {
             
             log.info("Saved {} properties, {} availability records, {} price samples for job: {}", 
                 savedCount, availabilitySaved, priceSamplesSaved, event.getJobId());
+
+            BigDecimal averagePrice = pricedPropertiesCount == 0
+                ? null
+                : totalSamplePrice.divide(BigDecimal.valueOf(pricedPropertiesCount), 2, RoundingMode.HALF_UP);
+
+            locationService.updateScrapingData(locationId, savedCount, averagePrice);
             
             // Publish domain event for cache invalidation (handled by analysis module)
             eventPublisher.publishEvent(

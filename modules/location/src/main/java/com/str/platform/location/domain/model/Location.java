@@ -3,6 +3,7 @@ package com.str.platform.location.domain.model;
 import com.str.platform.shared.domain.common.BaseEntity;
 import lombok.Getter;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
@@ -18,6 +19,7 @@ public class Location extends BaseEntity {
     private DataQuality dataQuality;
     private LocalDateTime lastScraped;
     private Integer propertyCount;
+    private BigDecimal averagePrice;
     
     public enum DataQuality {
         HIGH,    // >50 properties, scraped <24h ago
@@ -47,10 +49,22 @@ public class Location extends BaseEntity {
     }
     
     public void updateScrapingData(int propertyCount, LocalDateTime scrapedAt) {
+        updateScrapingData(propertyCount, scrapedAt, null);
+    }
+
+    public void updateScrapingData(int propertyCount, LocalDateTime scrapedAt, BigDecimal averagePrice) {
         this.propertyCount = propertyCount;
         this.lastScraped = scrapedAt;
+        this.averagePrice = averagePrice;
         this.dataQuality = calculateDataQuality(propertyCount, scrapedAt);
         markAsUpdated();
+    }
+
+    public void restoreScrapingData(Integer propertyCount, LocalDateTime scrapedAt, BigDecimal averagePrice) {
+        this.propertyCount = propertyCount;
+        this.lastScraped = scrapedAt;
+        this.averagePrice = averagePrice;
+        this.dataQuality = calculateDataQuality(propertyCount != null ? propertyCount : 0, scrapedAt);
     }
     
     private DataQuality calculateDataQuality(int count, LocalDateTime scrapedAt) {
