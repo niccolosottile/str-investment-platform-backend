@@ -5,6 +5,7 @@ import com.str.platform.scraping.domain.event.ScrapingJobCompletedEvent;
 import com.str.platform.scraping.domain.event.ScrapingJobFailedEvent;
 import com.str.platform.scraping.domain.model.PropertyAvailability;
 import com.str.platform.scraping.domain.model.PriceSample;
+import com.str.platform.scraping.domain.model.Property.PropertyType;
 import com.str.platform.scraping.domain.model.ScrapingJob;
 import com.str.platform.scraping.infrastructure.persistence.entity.PropertyAvailabilityEntity;
 import com.str.platform.scraping.infrastructure.persistence.entity.PropertyEntity;
@@ -209,7 +210,7 @@ public class ScrapingResultConsumer {
             .latitude(java.math.BigDecimal.valueOf(propData.getLatitude()))
             .longitude(java.math.BigDecimal.valueOf(propData.getLongitude()))
             .title(propData.getTitle())
-            .propertyType(propData.getPropertyType())
+            .propertyType(normalizePropertyType(propData.getPropertyType()))
             .bedrooms(propData.getBedrooms())
             .bathrooms(propData.getBathrooms())
             .guests(propData.getGuests())
@@ -230,7 +231,7 @@ public class ScrapingResultConsumer {
                                      UUID locationId) {
         entity.setLocationId(locationId);
         entity.setTitle(propData.getTitle());
-        entity.setPropertyType(propData.getPropertyType());
+        entity.setPropertyType(normalizePropertyType(propData.getPropertyType()));
         entity.setBedrooms(propData.getBedrooms());
         entity.setBathrooms(propData.getBathrooms());
         entity.setGuests(propData.getGuests());
@@ -254,6 +255,51 @@ public class ScrapingResultConsumer {
         return dateTime == null
             ? null
             : dateTime.atZone(java.time.ZoneId.systemDefault()).toInstant();
+    }
+
+    /**
+     * Normalizes raw Airbnb property type strings to canonical domain enum names.
+     * Airbnb titles yield prefixes such as "Apartment", "Condo", "Townhouse", "Room", etc.
+     * The canonical names stored in the DB must match Property.PropertyType exactly.
+     */
+    private String normalizePropertyType(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return PropertyType.ENTIRE_APARTMENT.name();
+        }
+        // Already canonical (e.g. re-processing or future scrapers that emit enum names)
+        try {
+            PropertyType.valueOf(
+                raw.toUpperCase().replace(' ', '_').replace('-', '_'));
+            return raw.toUpperCase().replace(' ', '_').replace('-', '_');
+        } catch (IllegalArgumentException ignored) {
+            // Fall through
+        }
+        String lower = raw.toLowerCase();
+        if (lower.equals("private room") || lower.equals("room") || lower.equals("suite")) {
+            return PropertyType.PRIVATE_ROOM.name();
+        }
+        if (lower.equals("shared room")) {
+            return PropertyType.SHARED_ROOM.name();
+        }
+        if (lower.equals("townhouse") || lower.equals("house") || lower.equals("villa")
+                || lower.equals("cottage") || lower.equals("cabin") || lower.equals("chalet")
+                || lower.equals("bungalow") || lower.equals("farmhouse")) {
+            return PropertyType.ENTIRE_HOUSE.name();
+        }
+        // Substring fallback for unexpected compound values
+        if (lower.contains("private room") || lower.contains("private_room")) {
+            return PropertyType.PRIVATE_ROOM.name();
+        }
+        if (lower.contains("shared room") || lower.contains("shared_room")) {
+            return PropertyType.SHARED_ROOM.name();
+        }
+        if (lower.contains("house") || lower.contains("villa") || lower.contains("cottage")
+                || lower.contains("cabin") || lower.contains("chalet") || lower.contains("townhouse")
+                || lower.contains("bungalow") || lower.contains("farmhouse")) {
+            return PropertyType.ENTIRE_HOUSE.name();
+        }
+        // Default: apartments, condos, flats, lofts, studios, and anything unrecognised
+        return PropertyType.ENTIRE_APARTMENT.name();
     }
     
     /**
