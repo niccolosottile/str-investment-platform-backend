@@ -62,7 +62,7 @@ public class JpaLocationRepositoryAdapter implements LocationRepository {
             throw new IllegalArgumentException("Coordinates cannot be null");
         }
         log.debug("Finding location by coordinates: {}, {}", coordinates.getLatitude(), coordinates.getLongitude());
-        return jpaRepository.findByLatitudeAndLongitude(
+        return jpaRepository.findFirstByLatitudeAndLongitude(
             BigDecimal.valueOf(coordinates.getLatitude()),
             BigDecimal.valueOf(coordinates.getLongitude())
         ).map(mapper::toDomain);

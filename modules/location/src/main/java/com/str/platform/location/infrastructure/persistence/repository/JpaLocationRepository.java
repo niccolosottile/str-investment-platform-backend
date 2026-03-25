@@ -39,9 +39,10 @@ public interface JpaLocationRepository extends JpaRepository<LocationEntity, UUI
     );
 
     /**
-     * Find location by exact coordinates
+     * Find location by exact coordinates. Uses findFirst to avoid NonUniqueResultException
+     * if duplicate rows exist (e.g. from a concurrent insert before the unique constraint existed).
      */
-    Optional<LocationEntity> findByLatitudeAndLongitude(BigDecimal latitude, BigDecimal longitude);
+    Optional<LocationEntity> findFirstByLatitudeAndLongitude(BigDecimal latitude, BigDecimal longitude);
 
     /**
      * Search locations by city name (case-insensitive, partial match)

@@ -11,6 +11,7 @@ import com.str.platform.shared.domain.exception.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -245,7 +246,16 @@ public class LocationService {
             location = new Location(coordinates, address);
             log.debug("Creating location without bounding box");
         }
-        
-        return locationRepository.save(location);
+
+        try {
+            return locationRepository.save(location);
+        } catch (DataIntegrityViolationException e) {
+            // Another concurrent request inserted this location between our check and insert.
+            // Fetch the row the other thread committed.
+            log.debug("Concurrent insert detected for coordinates ({}, {}), fetching existing row",
+                coordinates.getLatitude(), coordinates.getLongitude());
+            return locationRepository.findByCoordinates(coordinates)
+                .orElseThrow(() -> e);
+        }
     }
 }
