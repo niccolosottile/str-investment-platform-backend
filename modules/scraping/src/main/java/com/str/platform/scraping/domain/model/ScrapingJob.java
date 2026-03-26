@@ -77,6 +77,23 @@ public class ScrapingJob extends BaseEntity {
         this.errorMessage = errorMessage;
         markAsUpdated();
     }
+
+    /**
+     * Restore persisted state from storage without triggering state-machine side effects.
+     * Used exclusively by the entity mapper when rehydrating from the database.
+     */
+    public void restoreState(
+            JobStatus status,
+            LocalDateTime startedAt,
+            LocalDateTime completedAt,
+            Integer propertiesFound,
+            String errorMessage) {
+        this.status = status;
+        this.startedAt = startedAt;
+        this.completedAt = completedAt;
+        this.propertiesFound = propertiesFound;
+        this.errorMessage = errorMessage;
+    }
     
     public Duration getExecutionTime() {
         if (startedAt == null || completedAt == null) {

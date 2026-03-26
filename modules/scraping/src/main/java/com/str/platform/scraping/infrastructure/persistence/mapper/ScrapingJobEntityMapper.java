@@ -31,15 +31,19 @@ public class ScrapingJobEntityMapper {
             entity.getUpdatedAt() != null ? entity.getUpdatedAt().atZone(ZoneId.systemDefault()).toLocalDateTime() : null
         );
 
-        // Handle status transitions based on entity state
-        if (entity.getStatus() == ScrapingJobEntity.JobStatus.IN_PROGRESS) {
-            job.start();
-        } else if (entity.getStatus() == ScrapingJobEntity.JobStatus.COMPLETED && entity.getPropertiesFound() != null) {
-            job.start();
-            job.complete(entity.getPropertiesFound());
-        } else if (entity.getStatus() == ScrapingJobEntity.JobStatus.FAILED) {
-            job.start();
-            job.fail(entity.getErrorMessage());
+        // Restore persisted state directly — do NOT replay state-machine transitions
+        // (start()/complete() always call LocalDateTime.now(), corrupting stored timestamps)
+        if (entity.getStatus() != ScrapingJobEntity.JobStatus.PENDING) {
+            java.time.LocalDateTime startedAt = entity.getStartedAt() != null
+                    ? entity.getStartedAt().atZone(ZoneId.systemDefault()).toLocalDateTime() : null;
+            java.time.LocalDateTime completedAt = entity.getCompletedAt() != null
+                    ? entity.getCompletedAt().atZone(ZoneId.systemDefault()).toLocalDateTime() : null;
+            job.restoreState(
+                    mapStatusToDomain(entity.getStatus()),
+                    startedAt,
+                    completedAt,
+                    entity.getPropertiesFound(),
+                    entity.getErrorMessage());
         }
 
         return job;
@@ -102,6 +106,15 @@ public class ScrapingJobEntityMapper {
             case IN_PROGRESS -> ScrapingJobEntity.JobStatus.IN_PROGRESS;
             case COMPLETED -> ScrapingJobEntity.JobStatus.COMPLETED;
             case FAILED -> ScrapingJobEntity.JobStatus.FAILED;
+        };
+    }
+
+    private ScrapingJob.JobStatus mapStatusToDomain(ScrapingJobEntity.JobStatus entityStatus) {
+        return switch (entityStatus) {
+            case PENDING -> ScrapingJob.JobStatus.PENDING;
+            case IN_PROGRESS -> ScrapingJob.JobStatus.IN_PROGRESS;
+            case COMPLETED -> ScrapingJob.JobStatus.COMPLETED;
+            case FAILED -> ScrapingJob.JobStatus.FAILED;
         };
     }
 }
