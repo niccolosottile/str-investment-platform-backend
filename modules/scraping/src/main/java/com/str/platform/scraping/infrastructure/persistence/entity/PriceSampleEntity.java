@@ -21,6 +21,11 @@ import java.util.UUID;
     @Index(name = "idx_price_samples_dates", columnList = "property_id, search_date_start"),
     @Index(name = "idx_price_samples_sampled", columnList = "sampled_at"),
     @Index(name = "idx_price_samples_date_range", columnList = "search_date_start, search_date_end")
+}, uniqueConstraints = {
+    @UniqueConstraint(
+        name = "unique_price_sample_property_date_range",
+        columnNames = {"property_id", "search_date_start", "search_date_end"}
+    )
 })
 @Data
 @Builder

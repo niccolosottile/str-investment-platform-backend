@@ -8,6 +8,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -33,6 +34,15 @@ public interface JpaPriceSampleRepository extends JpaRepository<PriceSampleEntit
         @Param("propertyId") UUID propertyId,
         @Param("startDate") LocalDate startDate,
         @Param("endDate") LocalDate endDate
+    );
+
+    /**
+     * Find a price sample by its idempotency key.
+     */
+    Optional<PriceSampleEntity> findByPropertyIdAndSearchDateStartAndSearchDateEnd(
+        UUID propertyId,
+        LocalDate searchDateStart,
+        LocalDate searchDateEnd
     );
 
     /**

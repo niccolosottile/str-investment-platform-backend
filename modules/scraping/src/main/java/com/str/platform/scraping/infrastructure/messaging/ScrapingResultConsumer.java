@@ -316,16 +316,20 @@ public class ScrapingResultConsumer {
         
         for (PropertyAvailability availability : availabilityList) {
             try {
-                PropertyAvailabilityEntity entity = PropertyAvailabilityEntity.builder()
-                    .propertyId(propertyId)
-                    .month(availability.getMonth().toString()) // Format: YYYY-MM
-                    .totalDays(availability.getTotalDays())
-                    .availableDays(availability.getAvailableDays())
-                    .bookedDays(availability.getBookedDays())
-                    .blockedDays(availability.getBlockedDays())
-                    .estimatedOccupancy(java.math.BigDecimal.valueOf(availability.getEstimatedOccupancy()))
-                    .scrapedAt(scrapedAt)
-                    .build();
+                String month = availability.getMonth().toString();
+                PropertyAvailabilityEntity entity = availabilityRepository
+                    .findFirstByPropertyIdAndMonth(propertyId, month)
+                    .orElseGet(() -> PropertyAvailabilityEntity.builder()
+                        .propertyId(propertyId)
+                        .month(month)
+                        .build());
+
+                entity.setTotalDays(availability.getTotalDays());
+                entity.setAvailableDays(availability.getAvailableDays());
+                entity.setBookedDays(availability.getBookedDays());
+                entity.setBlockedDays(availability.getBlockedDays());
+                entity.setEstimatedOccupancy(java.math.BigDecimal.valueOf(availability.getEstimatedOccupancy()));
+                entity.setScrapedAt(scrapedAt);
                 
                 availabilityRepository.save(entity);
                 savedCount++;
@@ -349,15 +353,22 @@ public class ScrapingResultConsumer {
      */
     private void savePriceSample(UUID propertyId, PriceSample priceSample) {
         try {
-            PriceSampleEntity entity = PriceSampleEntity.builder()
-                .propertyId(propertyId)
-                .price(priceSample.getPrice())
-                .currency(priceSample.getCurrency())
-                .searchDateStart(priceSample.getSearchDateStart())
-                .searchDateEnd(priceSample.getSearchDateEnd())
-                .numberOfNights(priceSample.getNumberOfNights())
-                .sampledAt(priceSample.getSampledAt())
-                .build();
+            PriceSampleEntity entity = priceSampleRepository
+                .findByPropertyIdAndSearchDateStartAndSearchDateEnd(
+                    propertyId,
+                    priceSample.getSearchDateStart(),
+                    priceSample.getSearchDateEnd()
+                )
+                .orElseGet(() -> PriceSampleEntity.builder()
+                    .propertyId(propertyId)
+                    .searchDateStart(priceSample.getSearchDateStart())
+                    .searchDateEnd(priceSample.getSearchDateEnd())
+                    .build());
+
+            entity.setPrice(priceSample.getPrice());
+            entity.setCurrency(priceSample.getCurrency());
+            entity.setNumberOfNights(priceSample.getNumberOfNights());
+            entity.setSampledAt(priceSample.getSampledAt());
             
             priceSampleRepository.save(entity);
             

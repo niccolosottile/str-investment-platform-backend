@@ -20,7 +20,7 @@ import java.util.UUID;
     @Index(name = "idx_property_availability_month", columnList = "property_id, month"),
     @Index(name = "idx_property_availability_scraped", columnList = "scraped_at")
 }, uniqueConstraints = {
-    @UniqueConstraint(name = "unique_property_month_scraped", columnNames = {"property_id", "month", "scraped_at"})
+    @UniqueConstraint(name = "unique_property_month", columnNames = {"property_id", "month"})
 })
 @Data
 @Builder

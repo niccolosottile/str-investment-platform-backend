@@ -7,6 +7,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -25,6 +26,11 @@ public interface JpaPropertyAvailabilityRepository extends JpaRepository<Propert
      * Find availability records for a specific property and month
      */
     List<PropertyAvailabilityEntity> findByPropertyIdAndMonth(UUID propertyId, String month);
+
+       /**
+        * Find a single availability record by its idempotency key.
+        */
+       Optional<PropertyAvailabilityEntity> findFirstByPropertyIdAndMonth(UUID propertyId, String month);
 
     /**
      * Find all properties associated with a location
