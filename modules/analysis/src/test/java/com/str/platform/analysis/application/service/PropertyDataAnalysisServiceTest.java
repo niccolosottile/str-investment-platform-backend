@@ -44,9 +44,9 @@ class PropertyDataAnalysisServiceTest {
         void shouldCalculateADRFromPriceSamples() {
             // Given
             List<PriceSampleEntity> samples = List.of(
-                createPriceSample(new BigDecimal("300"), 3),
-                createPriceSample(new BigDecimal("500"), 5),
-                createPriceSample(new BigDecimal("600"), 6)
+                createPriceSample(new BigDecimal("120"), 3),
+                createPriceSample(new BigDecimal("150"), 5),
+                createPriceSample(new BigDecimal("180"), 6)
             );
             when(priceSampleRepository.findByLocationId(LOCATION_ID)).thenReturn(samples);
 
@@ -57,7 +57,7 @@ class PropertyDataAnalysisServiceTest {
             assertThat(result)
                 .isNotNull()
                 .satisfies(adr -> {
-                    assertThat(adr.getAmount()).isEqualByComparingTo(new BigDecimal("100.00"));
+                    assertThat(adr.getAmount()).isEqualByComparingTo(new BigDecimal("150.00"));
                     assertThat(adr.getCurrency()).isEqualTo(Money.Currency.EUR);
                 });
         }
@@ -80,9 +80,9 @@ class PropertyDataAnalysisServiceTest {
         void shouldFilterOutInvalidSamples() {
             // Given
             List<PriceSampleEntity> samples = List.of(
-                createPriceSample(new BigDecimal("300"), 0),
-                createPriceSample(new BigDecimal("400"), 4),
-                createPriceSample(new BigDecimal("500"), 5)
+                createPriceSample(new BigDecimal("120"), 0),
+                createPriceSample(new BigDecimal("140"), 4),
+                createPriceSample(new BigDecimal("160"), 5)
             );
             when(priceSampleRepository.findByLocationId(LOCATION_ID)).thenReturn(samples);
 
@@ -91,7 +91,7 @@ class PropertyDataAnalysisServiceTest {
 
             // Then
             assertThat(result).isNotNull();
-            assertThat(result.getAmount()).isEqualByComparingTo(new BigDecimal("100.00"));
+            assertThat(result.getAmount()).isEqualByComparingTo(new BigDecimal("140.00"));
         }
 
         @Test
@@ -99,9 +99,9 @@ class PropertyDataAnalysisServiceTest {
             // Given
             List<PriceSampleEntity> samples = List.of(
                 createPriceSample(new BigDecimal("100"), 1),
-                createPriceSample(new BigDecimal("200"), 2),
-                createPriceSample(new BigDecimal("300"), 3),
-                createPriceSample(new BigDecimal("400"), 4),
+                createPriceSample(new BigDecimal("150"), 2),
+                createPriceSample(new BigDecimal("200"), 3),
+                createPriceSample(new BigDecimal("250"), 4),
                 createPriceSample(new BigDecimal("1000"), 10)
             );
             when(priceSampleRepository.findByLocationId(LOCATION_ID)).thenReturn(samples);
@@ -110,7 +110,7 @@ class PropertyDataAnalysisServiceTest {
             Money result = sut.calculateAverageDailyRate(LOCATION_ID);
 
             // Then
-            assertThat(result.getAmount()).isEqualByComparingTo(new BigDecimal("100.00"));
+            assertThat(result.getAmount()).isEqualByComparingTo(new BigDecimal("200.00"));
         }
     }
 

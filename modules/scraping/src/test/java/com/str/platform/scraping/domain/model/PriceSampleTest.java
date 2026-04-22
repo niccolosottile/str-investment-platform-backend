@@ -33,7 +33,7 @@ class PriceSampleTest {
             
             // When
             var sample = new PriceSample(
-                PRICE_600,
+                new BigDecimal("200.00"),
                 CURRENCY_EUR,
                 CHECK_IN,
                 CHECK_OUT,
@@ -44,7 +44,7 @@ class PriceSampleTest {
             // Then
             assertThat(sample)
                 .satisfies(s -> {
-                    assertThat(s.getPrice()).isEqualByComparingTo(PRICE_600);
+                    assertThat(s.getPrice()).isEqualByComparingTo(new BigDecimal("200.00"));
                     assertThat(s.getCurrency()).isEqualTo(CURRENCY_EUR);
                     assertThat(s.getSearchDateStart()).isEqualTo(CHECK_IN);
                     assertThat(s.getSearchDateEnd()).isEqualTo(CHECK_OUT);
@@ -60,7 +60,7 @@ class PriceSampleTest {
         
         @Test
         void shouldCalculateADRCorrectly() {
-            // Given - €600 for 3 nights = €200/night
+            // Given - search results already provide the nightly price
             var sample = createSample(PRICE_600, THREE_NIGHTS);
             
             // When
@@ -68,7 +68,7 @@ class PriceSampleTest {
             
             // Then
             assertThat(adr)
-                .as("ADR should be total price divided by number of nights")
+                .as("ADR should match the sampled nightly price")
                 .isEqualByComparingTo("200.00");
         }
         
@@ -86,7 +86,7 @@ class PriceSampleTest {
         
         @Test
         void shouldCalculateADRForWeekLongStay() {
-            // Given - €1,050 for 7 nights = €150/night
+            // Given - the same nightly price can be associated with a 7-night query window
             var sample = createSample(new BigDecimal("1050.00"), 7);
             
             // When
@@ -97,23 +97,23 @@ class PriceSampleTest {
         }
         
         @Test
-        void shouldRoundADRToTwoDecimalPlaces() {
-            // Given - €100 for 3 nights = 33.333...
-            var sample = createSample(new BigDecimal("100.00"), 3);
+        void shouldPreserveTwoDecimalNightlyPrice() {
+            // Given
+            var sample = createSample(new BigDecimal("133.33"), 3);
             
             // When
             BigDecimal adr = sample.getAverageDailyRate();
             
             // Then
             assertThat(adr)
-                .as("ADR should be rounded to 2 decimal places")
-                .isEqualByComparingTo("33.33");
+                .as("ADR should preserve the sampled nightly price")
+                .isEqualByComparingTo("133.33");
         }
         
         @Test
         void shouldReturnZeroWhenNightsIsZero() {
             // Given
-            var sample = createSample(PRICE_600, 0);
+            var sample = createSample(new BigDecimal("200.00"), 0);
             
             // When
             BigDecimal adr = sample.getAverageDailyRate();
@@ -127,7 +127,7 @@ class PriceSampleTest {
         @Test
         void shouldReturnZeroWhenNightsIsNegative() {
             // Given
-            var sample = createSample(PRICE_600, -3);
+            var sample = createSample(new BigDecimal("200.00"), -3);
             
             // When
             BigDecimal adr = sample.getAverageDailyRate();

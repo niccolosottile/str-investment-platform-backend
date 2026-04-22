@@ -94,8 +94,7 @@ public class PropertyDataAnalysisService {
         
         for (PriceSampleEntity sample : samples) {
             int month = sample.getSearchDateStart().getMonthValue();
-            BigDecimal dailyRate = sample.getPrice()
-                .divide(BigDecimal.valueOf(sample.getNumberOfNights()), 2, RoundingMode.HALF_UP);
+            BigDecimal dailyRate = sample.getPrice();
             
             pricesByMonth.computeIfAbsent(month, k -> new ArrayList<>()).add(dailyRate);
         }
@@ -199,9 +198,8 @@ public class PropertyDataAnalysisService {
         }
 
         List<BigDecimal> dailyRates = samples.stream()
-            .filter(sample -> sample.getNumberOfNights() > 0)
-            .map(sample -> sample.getPrice()
-                .divide(BigDecimal.valueOf(sample.getNumberOfNights()), 2, RoundingMode.HALF_UP))
+            .filter(sample -> sample.getPrice() != null)
+            .map(PriceSampleEntity::getPrice)
             .sorted()
             .toList();
 
