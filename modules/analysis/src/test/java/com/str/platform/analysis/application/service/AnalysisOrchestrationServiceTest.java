@@ -45,6 +45,9 @@ class AnalysisOrchestrationServiceTest {
     private MarketAnalysisService marketAnalysisService;
 
     @Mock
+    private PropertyDataAnalysisService propertyDataAnalysisService;
+
+    @Mock
     private PropertyService propertyService;
 
     @Mock
@@ -148,6 +151,39 @@ class AnalysisOrchestrationServiceTest {
                 argThat(config -> config.isAcceptsRenovation()),
                 any()
             );
+        }
+
+        @Test
+        void shouldFilterPropertiesByRequestedTypeBeforeAnalysis() {
+            // Given
+            List<Property> properties = List.of(
+                new Property(LOCATION_ID, ScrapingJob.Platform.AIRBNB, "apt-1",
+                    new Coordinates(45.4642, 9.1900), Property.PropertyType.ENTIRE_APARTMENT),
+                new Property(LOCATION_ID, ScrapingJob.Platform.AIRBNB, "room-1",
+                    new Coordinates(45.4642, 9.1900), Property.PropertyType.PRIVATE_ROOM)
+            );
+            when(propertyService.getPropertiesByLocation(LOCATION_ID)).thenReturn(properties);
+            givenValidMarketAnalysis();
+            givenValidInvestmentMetrics();
+            givenAnalysisCanBeSaved();
+
+            // When
+            sut.performAnalysisForLocation(
+                LOCATION_ID,
+                InvestmentConfiguration.InvestmentType.BUY,
+                BUDGET_200K,
+                InvestmentConfiguration.PropertyType.APARTMENT,
+                InvestmentConfiguration.InvestmentGoal.STABLE_INCOME,
+                false
+            );
+
+            // Then
+            verify(marketAnalysisService).analyzeMarket(
+                eq(LOCATION_ID),
+                argThat(filtered -> filtered.size() == 1
+                    && filtered.get(0).getPropertyType() == Property.PropertyType.ENTIRE_APARTMENT)
+            );
+            verify(propertyDataAnalysisService).summarizeDataCoverage(anySet(), eq(1));
         }
     }
 
@@ -296,7 +332,9 @@ class AnalysisOrchestrationServiceTest {
             0.70
         );
         when(investmentAnalysisService.calculateMetrics(any(), any())).thenReturn(metrics);
-        when(investmentAnalysisService.determineDataQuality(anyInt()))
+        when(propertyDataAnalysisService.summarizeDataCoverage(anySet(), anyInt()))
+            .thenReturn(new AnalysisDataCoverage(25, 50, 20, 6, 60, 22, 6));
+        when(investmentAnalysisService.determineDataQuality(any(AnalysisDataCoverage.class)))
             .thenReturn(AnalysisResult.DataQuality.HIGH);
     }
 

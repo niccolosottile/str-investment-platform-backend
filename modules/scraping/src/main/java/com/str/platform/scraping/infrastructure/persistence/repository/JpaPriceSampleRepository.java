@@ -7,6 +7,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -22,6 +23,11 @@ public interface JpaPriceSampleRepository extends JpaRepository<PriceSampleEntit
      * Find all price samples for a specific property
      */
     List<PriceSampleEntity> findByPropertyId(UUID propertyId);
+
+    /**
+     * Find all price samples for a set of properties.
+     */
+    List<PriceSampleEntity> findByPropertyIdIn(Collection<UUID> propertyIds);
 
     /**
      * Find price samples for a specific property within a date range

@@ -1,5 +1,6 @@
 package com.str.platform.analysis.application.service;
 
+import com.str.platform.analysis.domain.model.AnalysisDataCoverage;
 import com.str.platform.analysis.domain.model.Money;
 import com.str.platform.scraping.infrastructure.persistence.entity.PriceSampleEntity;
 import com.str.platform.scraping.infrastructure.persistence.entity.PropertyAvailabilityEntity;
@@ -11,6 +12,8 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.YearMonth;
+import java.util.Collection;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -35,34 +38,22 @@ public class PropertyDataAnalysisService {
      */
     public Money calculateAverageDailyRate(UUID locationId) {
         log.debug("Calculating ADR for location: {}", locationId);
-        
-        List<PriceSampleEntity> samples = priceSampleRepository.findByLocationId(locationId);
-        
-        if (samples.isEmpty()) {
-            log.warn("No price samples found for location {}", locationId);
+        return calculateAverageDailyRate(
+            priceSampleRepository.findByLocationId(locationId),
+            "location " + locationId
+        );
+    }
+
+    public Money calculateAverageDailyRate(Collection<UUID> propertyIds) {
+        if (propertyIds.isEmpty()) {
+            log.warn("No property ids supplied for ADR calculation");
             return null;
         }
-        
-        // Calculate daily rate for each sample
-        List<BigDecimal> dailyRates = samples.stream()
-            .filter(sample -> sample.getNumberOfNights() > 0)
-            .map(sample -> sample.getPrice()
-                .divide(BigDecimal.valueOf(sample.getNumberOfNights()), 2, RoundingMode.HALF_UP))
-            .sorted()
-            .toList();
-        
-        if (dailyRates.isEmpty()) {
-            log.warn("No valid daily rates calculated for location {}", locationId);
-            return null;
-        }
-        
-        // Return median (robust to outliers)
-        BigDecimal median = calculateMedian(dailyRates);
-        
-        log.info("Calculated ADR for location {}: {} (from {} samples)",
-            locationId, median, samples.size());
-        
-        return new Money(median, Money.Currency.EUR);
+
+        return calculateAverageDailyRate(
+            priceSampleRepository.findByPropertyIdIn(propertyIds),
+            propertyIds.size() + " filtered properties"
+        );
     }
     
     /**
@@ -74,9 +65,25 @@ public class PropertyDataAnalysisService {
      */
     public double calculateSeasonalityIndex(UUID locationId) {
         log.debug("Calculating seasonality index for location: {}", locationId);
-        
-        List<PriceSampleEntity> samples = priceSampleRepository.findByLocationId(locationId);
-        
+        return calculateSeasonalityIndex(
+            priceSampleRepository.findByLocationId(locationId),
+            "location " + locationId
+        );
+    }
+
+    public double calculateSeasonalityIndex(Collection<UUID> propertyIds) {
+        if (propertyIds.isEmpty()) {
+            log.warn("No property ids supplied for seasonality calculation");
+            return 0.0;
+        }
+
+        return calculateSeasonalityIndex(
+            priceSampleRepository.findByPropertyIdIn(propertyIds),
+            propertyIds.size() + " filtered properties"
+        );
+    }
+
+    private double calculateSeasonalityIndex(List<PriceSampleEntity> samples, String scopeLabel) {
         if (samples.size() < 12) { // Need at least 12 samples across different months
             log.warn("Insufficient data for seasonality calculation: {} samples", samples.size());
             return 0.0; // No seasonality data
@@ -128,8 +135,8 @@ public class PropertyDataAnalysisService {
         
         double result = seasonalityIndex.doubleValue();
         
-        log.info("Calculated seasonality index for location {}: {} (max: {}, min: {})",
-            locationId, String.format("%.2f", result), maxMonthlyAvg, minMonthlyAvg);
+        log.info("Calculated seasonality index for {}: {} (max: {}, min: {})",
+            scopeLabel, String.format("%.2f", result), maxMonthlyAvg, minMonthlyAvg);
         
         return result;
     }
@@ -144,33 +151,137 @@ public class PropertyDataAnalysisService {
      */
     public BigDecimal calculateOccupancy(UUID locationId) {
         log.debug("Calculating occupancy for location: {}", locationId);
-        
-        // Get ALL availability data for the location (all months, all properties)
-        List<PropertyAvailabilityEntity> availabilityData = 
-            availabilityRepository.findLatestByLocationId(locationId);
-        
-        if (availabilityData.isEmpty()) {
-            log.warn("No availability data found for location {}", locationId);
+        return calculateOccupancy(
+            availabilityRepository.findLatestByLocationId(locationId),
+            "location " + locationId
+        );
+    }
+
+    public BigDecimal calculateOccupancy(Collection<UUID> propertyIds) {
+        if (propertyIds.isEmpty()) {
+            log.warn("No property ids supplied for occupancy calculation");
             return null;
         }
-        
-        // Calculate average occupancy across ALL months and properties
+
+        return calculateOccupancy(
+            availabilityRepository.findLatestByPropertyIds(propertyIds),
+            propertyIds.size() + " filtered properties"
+        );
+    }
+
+    /**
+     * Summarize how much pricing and availability evidence supports an analysis.
+     */
+    public AnalysisDataCoverage summarizeDataCoverage(UUID locationId, int propertyCount) {
+        return summarizeDataCoverage(
+            propertyCount,
+            priceSampleRepository.findByLocationId(locationId),
+            availabilityRepository.findLatestByLocationId(locationId)
+        );
+    }
+
+    public AnalysisDataCoverage summarizeDataCoverage(Collection<UUID> propertyIds, int propertyCount) {
+        if (propertyIds.isEmpty()) {
+            return new AnalysisDataCoverage(propertyCount, 0, 0, 0, 0, 0, 0);
+        }
+
+        return summarizeDataCoverage(
+            propertyCount,
+            priceSampleRepository.findByPropertyIdIn(propertyIds),
+            availabilityRepository.findLatestByPropertyIds(propertyIds)
+        );
+    }
+
+    private Money calculateAverageDailyRate(List<PriceSampleEntity> samples, String scopeLabel) {
+        if (samples.isEmpty()) {
+            log.warn("No price samples found for {}", scopeLabel);
+            return null;
+        }
+
+        List<BigDecimal> dailyRates = samples.stream()
+            .filter(sample -> sample.getNumberOfNights() > 0)
+            .map(sample -> sample.getPrice()
+                .divide(BigDecimal.valueOf(sample.getNumberOfNights()), 2, RoundingMode.HALF_UP))
+            .sorted()
+            .toList();
+
+        if (dailyRates.isEmpty()) {
+            log.warn("No valid daily rates calculated for {}", scopeLabel);
+            return null;
+        }
+
+        BigDecimal median = calculateMedian(dailyRates);
+
+        log.info("Calculated ADR for {}: {} (from {} samples)",
+            scopeLabel, median, samples.size());
+
+        return new Money(median, Money.Currency.EUR);
+    }
+
+    private BigDecimal calculateOccupancy(List<PropertyAvailabilityEntity> availabilityData, String scopeLabel) {
+        if (availabilityData.isEmpty()) {
+            log.warn("No availability data found for {}", scopeLabel);
+            return null;
+        }
+
         BigDecimal totalOccupancy = availabilityData.stream()
             .map(PropertyAvailabilityEntity::getEstimatedOccupancy)
             .reduce(BigDecimal.ZERO, BigDecimal::add);
-        
+
         BigDecimal avgOccupancy = totalOccupancy.divide(
             BigDecimal.valueOf(availabilityData.size()),
             4,
             RoundingMode.HALF_UP
         );
-        
-        log.info("Calculated occupancy for location {}: {} (from {} data points across {} months)",
-            locationId, String.format("%.2f", avgOccupancy), 
-            availabilityData.size(), 
+
+        log.info("Calculated occupancy for {}: {} (from {} data points across {} months)",
+            scopeLabel, String.format("%.2f", avgOccupancy),
+            availabilityData.size(),
             availabilityData.stream().map(PropertyAvailabilityEntity::getMonth).distinct().count());
-        
+
         return avgOccupancy;
+    }
+
+    private AnalysisDataCoverage summarizeDataCoverage(
+        int propertyCount,
+        List<PriceSampleEntity> priceSamples,
+        List<PropertyAvailabilityEntity> availabilityData
+    ) {
+
+        long priceCoveredProperties = priceSamples.stream()
+            .map(PriceSampleEntity::getPropertyId)
+            .filter(Objects::nonNull)
+            .distinct()
+            .count();
+
+        long priceMonthCount = priceSamples.stream()
+            .map(PriceSampleEntity::getSearchDateStart)
+            .filter(Objects::nonNull)
+            .map(YearMonth::from)
+            .distinct()
+            .count();
+
+        long availabilityCoveredProperties = availabilityData.stream()
+            .map(PropertyAvailabilityEntity::getPropertyId)
+            .filter(Objects::nonNull)
+            .distinct()
+            .count();
+
+        long availabilityMonthCount = availabilityData.stream()
+            .map(PropertyAvailabilityEntity::getMonth)
+            .filter(Objects::nonNull)
+            .distinct()
+            .count();
+
+        return new AnalysisDataCoverage(
+            propertyCount,
+            priceSamples.size(),
+            priceCoveredProperties,
+            priceMonthCount,
+            availabilityData.size(),
+            availabilityCoveredProperties,
+            availabilityMonthCount
+        );
     }
     
     /**

@@ -33,6 +33,12 @@ import java.util.Map;
 @EnableCaching
 public class RedisConfig implements CachingConfigurer {
 
+    private final ObjectMapper objectMapper;
+
+    public RedisConfig(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
+
     /**
      * Custom error handler that evicts corrupt/unreadable cache entries rather than crashing.
      * This handles serialization format changes across deployments gracefully.
@@ -69,7 +75,7 @@ public class RedisConfig implements CachingConfigurer {
     }
 
     private GenericJackson2JsonRedisSerializer redisSerializer() {
-        ObjectMapper mapper = new ObjectMapper();
+        ObjectMapper mapper = objectMapper.copy();
         mapper.registerModule(new JavaTimeModule());
         mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
         // Allow Jackson to access private fields directly (needed for Location which has no setters)

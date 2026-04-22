@@ -15,6 +15,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.*;
@@ -79,7 +80,7 @@ class MarketAnalysisServiceTest {
         @Test
         void shouldReturnNullWhenNoPriceSampleData() {
             // Given
-            when(propertyDataAnalysisService.calculateAverageDailyRate(LOCATION_ID)).thenReturn(null);
+            when(propertyDataAnalysisService.calculateAverageDailyRate(any(Set.class))).thenReturn(null);
             
             // When
             MarketAnalysis result = sut.analyzeMarket(LOCATION_ID, createPropertyList(10));
@@ -93,9 +94,9 @@ class MarketAnalysisServiceTest {
         @Test
         void shouldReturnNullWhenNoAvailabilityData() {
             // Given
-            when(propertyDataAnalysisService.calculateAverageDailyRate(LOCATION_ID))
+            when(propertyDataAnalysisService.calculateAverageDailyRate(any(Set.class)))
                 .thenReturn(DAILY_RATE_100);
-            when(propertyDataAnalysisService.calculateOccupancy(LOCATION_ID))
+            when(propertyDataAnalysisService.calculateOccupancy(any(Set.class)))
                 .thenReturn(null);
             
             // When
@@ -129,13 +130,13 @@ class MarketAnalysisServiceTest {
     }
     
     private void givenValidMarketData() {
-        when(propertyDataAnalysisService.calculateAverageDailyRate(LOCATION_ID))
+        when(propertyDataAnalysisService.calculateAverageDailyRate(any(Set.class)))
             .thenReturn(DAILY_RATE_100);
         
-        when(propertyDataAnalysisService.calculateOccupancy(LOCATION_ID))
+        when(propertyDataAnalysisService.calculateOccupancy(any(Set.class)))
             .thenReturn(OCCUPANCY_70_PERCENT);
         
-        when(propertyDataAnalysisService.calculateSeasonalityIndex(LOCATION_ID))
+        when(propertyDataAnalysisService.calculateSeasonalityIndex(any(Set.class)))
             .thenReturn(0.15);
         
         when(investmentAnalysisService.calculateMonthlyRevenue(any(Money.class), anyDouble()))

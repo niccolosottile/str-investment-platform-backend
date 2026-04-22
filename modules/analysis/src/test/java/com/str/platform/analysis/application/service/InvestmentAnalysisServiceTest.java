@@ -174,47 +174,63 @@ class InvestmentAnalysisServiceTest {
     class DataQualityAssessment {
         
         @Test
-        void shouldDetermineHighQualityWithManyProperties() {
-            // When - ≥50 properties
-            var quality = sut.determineDataQuality(75);
+        void shouldDetermineHighQualityWithDeepCoverage() {
+            var quality = sut.determineDataQuality(new AnalysisDataCoverage(
+                75,
+                180,
+                68,
+                9,
+                220,
+                70,
+                9
+            ));
             
-            // Then
             assertThat(quality).isEqualTo(AnalysisResult.DataQuality.HIGH);
         }
         
         @Test
-        void shouldDetermineMediumQualityWithModerateProperties() {
-            // When - 10-49 properties
-            var quality = sut.determineDataQuality(25);
+        void shouldDetermineMediumQualityWithModerateCoverage() {
+            var quality = sut.determineDataQuality(new AnalysisDataCoverage(
+                25,
+                36,
+                18,
+                3,
+                42,
+                19,
+                3
+            ));
             
-            // Then
             assertThat(quality).isEqualTo(AnalysisResult.DataQuality.MEDIUM);
         }
         
         @Test
-        void shouldDetermineLowQualityWithFewProperties() {
-            // When - <10 properties
-            var quality = sut.determineDataQuality(5);
+        void shouldDetermineLowQualityWhenTimeDepthIsThin() {
+            var quality = sut.determineDataQuality(new AnalysisDataCoverage(
+                117,
+                129,
+                117,
+                1,
+                117,
+                117,
+                1
+            ));
             
-            // Then
             assertThat(quality).isEqualTo(AnalysisResult.DataQuality.LOW);
         }
         
-        @ParameterizedTest(name = "{0} properties → {1} quality")
-        @CsvSource({
-            "1, LOW",
-            "9, LOW",
-            "10, MEDIUM",
-            "49, MEDIUM",
-            "50, HIGH",
-            "100, HIGH"
-        })
-        void shouldDetermineDataQualityCorrectly(int propertyCount, AnalysisResult.DataQuality expectedQuality) {
-            // When
-            var quality = sut.determineDataQuality(propertyCount);
-            
-            // Then
-            assertThat(quality).isEqualTo(expectedQuality);
+        @Test
+        void shouldDetermineLowQualityWhenCoverageIsSparse() {
+            var quality = sut.determineDataQuality(new AnalysisDataCoverage(
+                18,
+                10,
+                8,
+                2,
+                12,
+                9,
+                1
+            ));
+
+            assertThat(quality).isEqualTo(AnalysisResult.DataQuality.LOW);
         }
     }
     

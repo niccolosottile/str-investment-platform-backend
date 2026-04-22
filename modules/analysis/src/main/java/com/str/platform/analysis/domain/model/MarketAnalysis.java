@@ -1,6 +1,7 @@
 package com.str.platform.analysis.domain.model;
 
-import lombok.AllArgsConstructor;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 
 import java.math.BigDecimal;
@@ -10,7 +11,6 @@ import java.math.BigDecimal;
  * Includes pricing, occupancy, competition, and market trend indicators.
  */
 @Getter
-@AllArgsConstructor
 public class MarketAnalysis {
     
     private final int totalListings;
@@ -21,6 +21,25 @@ public class MarketAnalysis {
     private final GrowthTrend growthTrend;
     private final CompetitionDensity competitionDensity;
     
+    @JsonCreator
+    public MarketAnalysis(
+        @JsonProperty("totalListings") int totalListings,
+        @JsonProperty("averageDailyRate") Money averageDailyRate,
+        @JsonProperty("averageOccupancyRate") BigDecimal averageOccupancyRate,
+        @JsonProperty("estimatedMonthlyRevenue") Money estimatedMonthlyRevenue,
+        @JsonProperty("seasonalityIndex") double seasonalityIndex,
+        @JsonProperty("growthTrend") GrowthTrend growthTrend,
+        @JsonProperty("competitionDensity") CompetitionDensity competitionDensity
+    ) {
+        this.totalListings = totalListings;
+        this.averageDailyRate = averageDailyRate;
+        this.averageOccupancyRate = averageOccupancyRate;
+        this.estimatedMonthlyRevenue = estimatedMonthlyRevenue;
+        this.seasonalityIndex = seasonalityIndex;
+        this.growthTrend = growthTrend;
+        this.competitionDensity = competitionDensity;
+    }
+
     public enum GrowthTrend {
         INCREASING,
         STABLE,

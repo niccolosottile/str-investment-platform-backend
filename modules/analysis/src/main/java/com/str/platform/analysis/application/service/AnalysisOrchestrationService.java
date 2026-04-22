@@ -15,7 +15,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Main orchestration service for investment analysis.
@@ -28,6 +30,7 @@ public class AnalysisOrchestrationService {
     
     private final InvestmentAnalysisService investmentAnalysisService;
     private final MarketAnalysisService marketAnalysisService;
+    private final PropertyDataAnalysisService propertyDataAnalysisService;
     private final PropertyService propertyService;
     private final JpaAnalysisResultRepository analysisResultRepository;
     private final AnalysisResultEntityMapper analysisResultMapper;
@@ -64,7 +67,9 @@ public class AnalysisOrchestrationService {
         log.info("Starting investment analysis for locationId={} with budget: {}",
             locationId, config.getBudget());
         
-        List<Property> properties = propertyService.getPropertiesByLocation(locationId);
+        List<Property> properties = propertyService.getPropertiesByLocation(locationId).stream()
+            .filter(property -> matchesRequestedPropertyType(property, propertyType))
+            .toList();
         
         if (properties.isEmpty()) {
             log.error("No properties found for location {}", locationId);
@@ -90,8 +95,12 @@ public class AnalysisOrchestrationService {
             marketAnalysis
         );
     
+        Set<UUID> propertyIds = properties.stream()
+            .map(Property::getId)
+            .collect(Collectors.toSet());
+        AnalysisDataCoverage dataCoverage = propertyDataAnalysisService.summarizeDataCoverage(propertyIds, properties.size());
         AnalysisResult.DataQuality dataQuality = 
-            investmentAnalysisService.determineDataQuality(properties.size());
+            investmentAnalysisService.determineDataQuality(dataCoverage);
         
         AnalysisResult result = new AnalysisResult(
             config,
@@ -159,5 +168,17 @@ public class AnalysisOrchestrationService {
             // Log but don't fail - cache eviction is non-critical, will expire eventually
             log.error("Failed to evict analysis cache for locationId={}: {}", locationId, e.getMessage());
         }
+    }
+
+    private boolean matchesRequestedPropertyType(
+            Property property,
+            InvestmentConfiguration.PropertyType requestedType
+    ) {
+        return switch (requestedType) {
+            case APARTMENT -> property.getPropertyType() == Property.PropertyType.ENTIRE_APARTMENT;
+            case HOUSE -> property.getPropertyType() == Property.PropertyType.ENTIRE_HOUSE;
+            case ROOM -> property.getPropertyType() == Property.PropertyType.PRIVATE_ROOM
+                || property.getPropertyType() == Property.PropertyType.SHARED_ROOM;
+        };
     }
 }

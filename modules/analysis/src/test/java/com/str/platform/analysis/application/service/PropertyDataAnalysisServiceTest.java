@@ -1,5 +1,6 @@
 package com.str.platform.analysis.application.service;
 
+import com.str.platform.analysis.domain.model.AnalysisDataCoverage;
 import com.str.platform.analysis.domain.model.Money;
 import com.str.platform.scraping.infrastructure.persistence.entity.PriceSampleEntity;
 import com.str.platform.scraping.infrastructure.persistence.entity.PropertyAvailabilityEntity;
@@ -219,12 +220,52 @@ class PropertyDataAnalysisServiceTest {
         }
     }
 
+    @Nested
+    @DisplayName("Data Coverage Summary")
+    class DataCoverageSummary {
+
+        @Test
+        void shouldSummarizePricingAndAvailabilityCoverage() {
+            List<PriceSampleEntity> priceSamples = List.of(
+                createPriceSampleForProperty(PROPERTY_ID_1, new BigDecimal("300"), 3, 1),
+                createPriceSampleForProperty(PROPERTY_ID_1, new BigDecimal("360"), 3, 2),
+                createPriceSampleForProperty(PROPERTY_ID_2, new BigDecimal("450"), 3, 2)
+            );
+            List<PropertyAvailabilityEntity> availabilityData = List.of(
+                createAvailabilityForProperty(PROPERTY_ID_1, new BigDecimal("0.65"), "2025-01"),
+                createAvailabilityForProperty(PROPERTY_ID_1, new BigDecimal("0.60"), "2025-02"),
+                createAvailabilityForProperty(PROPERTY_ID_2, new BigDecimal("0.70"), "2025-02")
+            );
+            when(priceSampleRepository.findByLocationId(LOCATION_ID)).thenReturn(priceSamples);
+            when(availabilityRepository.findLatestByLocationId(LOCATION_ID)).thenReturn(availabilityData);
+
+            AnalysisDataCoverage coverage = sut.summarizeDataCoverage(LOCATION_ID, 5);
+
+            assertThat(coverage.propertyCount()).isEqualTo(5);
+            assertThat(coverage.priceSampleCount()).isEqualTo(3);
+            assertThat(coverage.propertiesWithPriceSamples()).isEqualTo(2);
+            assertThat(coverage.priceSampleMonthCount()).isEqualTo(2);
+            assertThat(coverage.availabilityPointCount()).isEqualTo(3);
+            assertThat(coverage.propertiesWithAvailability()).isEqualTo(2);
+            assertThat(coverage.availabilityMonthCount()).isEqualTo(2);
+        }
+    }
+
+    private static final UUID PROPERTY_ID_1 = UUID.fromString("5bc44adc-76aa-44f1-a0c9-2fbf90f7f4c1");
+    private static final UUID PROPERTY_ID_2 = UUID.fromString("9b21d5d2-7112-4ae2-86b0-2151aa583f5f");
+
     private PriceSampleEntity createPriceSample(BigDecimal price, int nights) {
         PriceSampleEntity entity = new PriceSampleEntity();
         entity.setPrice(price);
         entity.setNumberOfNights(nights);
         entity.setSearchDateStart(LocalDate.of(2025, 1, 15));
         entity.setSearchDateEnd(LocalDate.of(2025, 1, 15).plusDays(nights));
+        return entity;
+    }
+
+    private PriceSampleEntity createPriceSampleForProperty(UUID propertyId, BigDecimal price, int nights, int month) {
+        PriceSampleEntity entity = createPriceSampleForMonth(price, nights, month);
+        entity.setPropertyId(propertyId);
         return entity;
     }
 
@@ -275,6 +316,14 @@ class PropertyDataAnalysisServiceTest {
         PropertyAvailabilityEntity entity = new PropertyAvailabilityEntity();
         entity.setEstimatedOccupancy(occupancy);
         entity.setMonth("2025-01");
+        return entity;
+    }
+
+    private PropertyAvailabilityEntity createAvailabilityForProperty(UUID propertyId, BigDecimal occupancy, String month) {
+        PropertyAvailabilityEntity entity = new PropertyAvailabilityEntity();
+        entity.setPropertyId(propertyId);
+        entity.setEstimatedOccupancy(occupancy);
+        entity.setMonth(month);
         return entity;
     }
 }

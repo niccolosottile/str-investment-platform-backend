@@ -9,7 +9,9 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Service for analyzing market conditions.
@@ -48,16 +50,20 @@ public class MarketAnalysisService {
             log.error("No properties found for market analysis at location {}", locationId);
             return null;
         }
+
+        Set<UUID> propertyIds = nearbyProperties.stream()
+            .map(Property::getId)
+            .collect(Collectors.toSet());
         
         // Calculate average daily rate from scraped price samples
-        Money averageDailyRate = propertyDataAnalysisService.calculateAverageDailyRate(locationId);
+        Money averageDailyRate = propertyDataAnalysisService.calculateAverageDailyRate(propertyIds);
         if (averageDailyRate == null) {
             log.error("No price sample data available for location {}, cannot perform analysis", locationId);
             return null;
         }
         
         // Calculate occupancy rate from availability calendar data
-        BigDecimal occupancyRate = propertyDataAnalysisService.calculateOccupancy(locationId);
+        BigDecimal occupancyRate = propertyDataAnalysisService.calculateOccupancy(propertyIds);
         if (occupancyRate == null) {
             log.error("No availability data for location {}, cannot perform analysis", locationId);
             return null;
@@ -78,7 +84,7 @@ public class MarketAnalysisService {
             analyzeGrowthTrend(nearbyProperties);
         
         // Calculate seasonality index from scraped price samples
-        double seasonalityIndex = propertyDataAnalysisService.calculateSeasonalityIndex(locationId);
+        double seasonalityIndex = propertyDataAnalysisService.calculateSeasonalityIndex(propertyIds);
         
         log.info("Market analysis complete: {} listings, €{} ADR, {}% occupancy, €{} monthly revenue, seasonality {}, {} competition",
             nearbyProperties.size(), averageDailyRate.getAmount(), 

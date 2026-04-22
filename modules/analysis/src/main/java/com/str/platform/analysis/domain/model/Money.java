@@ -1,5 +1,7 @@
 package com.str.platform.analysis.domain.model;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.str.platform.shared.domain.common.ValueObject;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -20,7 +22,11 @@ public class Money extends ValueObject {
         EUR, GBP, CHF
     }
     
-    public Money(BigDecimal amount, Currency currency) {
+    @JsonCreator
+    public Money(
+        @JsonProperty("amount") BigDecimal amount,
+        @JsonProperty("currency") Currency currency
+    ) {
         if (amount == null || amount.compareTo(BigDecimal.ZERO) < 0) {
             throw new IllegalArgumentException("Amount cannot be negative");
         }

@@ -20,6 +20,8 @@ public class InvestmentAnalysisService {
     private static final double MONTHLY_OPERATING_COST_RATIO = 0.25; // 25% of revenue
     private static final double ANNUAL_PROPERTY_APPRECIATION = 0.02;  // 2%
     private static final int DAYS_PER_MONTH = 30;
+    private static final double HIGH_QUALITY_SCORE = 0.75;
+    private static final double MEDIUM_QUALITY_SCORE = 0.45;
     
     /**
      * Calculate comprehensive investment metrics
@@ -160,13 +162,47 @@ public class InvestmentAnalysisService {
     /**
      * Determine data quality based on number of properties
      */
-    public AnalysisResult.DataQuality determineDataQuality(int propertyCount) {
-        if (propertyCount >= 50) {
+    public AnalysisResult.DataQuality determineDataQuality(AnalysisDataCoverage coverage) {
+        double score = calculateDataQualityScore(coverage);
+        long minimumMonthDepth = Math.min(coverage.priceSampleMonthCount(), coverage.availabilityMonthCount());
+
+        if (score >= HIGH_QUALITY_SCORE && minimumMonthDepth >= 6) {
             return AnalysisResult.DataQuality.HIGH;
-        } else if (propertyCount >= 10) {
+        } else if (score >= MEDIUM_QUALITY_SCORE && minimumMonthDepth >= 2) {
             return AnalysisResult.DataQuality.MEDIUM;
         } else {
             return AnalysisResult.DataQuality.LOW;
         }
+    }
+
+    private double calculateDataQualityScore(AnalysisDataCoverage coverage) {
+        int propertyCount = Math.max(coverage.propertyCount(), 0);
+        if (propertyCount == 0) {
+            return 0.0;
+        }
+
+        double listingScore = clamp(propertyCount / 75.0);
+        double priceSampleVolumeScore = clamp(coverage.priceSampleCount() / Math.max(propertyCount * 1.5, 24.0));
+        double availabilityVolumeScore = clamp(coverage.availabilityPointCount() / Math.max(propertyCount * 2.0, 24.0));
+        double pricePropertyCoverageScore = clamp(coverage.propertiesWithPriceSamples() / Math.max(propertyCount * 0.70, 1.0));
+        double availabilityPropertyCoverageScore = clamp(coverage.propertiesWithAvailability() / Math.max(propertyCount * 0.70, 1.0));
+        double monthDepthScore = clamp(Math.min(coverage.priceSampleMonthCount(), coverage.availabilityMonthCount()) / 12.0);
+
+        return (listingScore * 0.15)
+            + (priceSampleVolumeScore * 0.20)
+            + (availabilityVolumeScore * 0.20)
+            + (pricePropertyCoverageScore * 0.15)
+            + (availabilityPropertyCoverageScore * 0.15)
+            + (monthDepthScore * 0.15);
+    }
+
+    private double clamp(double value) {
+        if (value < 0.0) {
+            return 0.0;
+        }
+        if (value > 1.0) {
+            return 1.0;
+        }
+        return value;
     }
 }
