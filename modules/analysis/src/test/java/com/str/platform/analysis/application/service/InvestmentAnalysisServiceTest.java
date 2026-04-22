@@ -149,7 +149,22 @@ class InvestmentAnalysisServiceTest {
             // Then
             assertThat(metrics.getPaybackPeriodMonths())
                 .as("Payback period should be reasonable")
-                .isBetween(1, 240); // Between 1 month and 20 years
+                .isPositive();
+        }
+
+        @Test
+        void shouldReturnActualPaybackPeriodWhenItExceedsTwentyYears() {
+            // Given
+            var config = createBuyConfiguration();
+            var marketAnalysis = createMarketAnalysis(Money.euros(40), 0.35);
+
+            // When
+            InvestmentMetrics metrics = sut.calculateMetrics(config, marketAnalysis);
+
+            // Then
+            assertThat(metrics.getPaybackPeriodMonths())
+                .as("Payback period should not be capped at 20 years")
+                .isGreaterThan(240);
         }
         
         @Test

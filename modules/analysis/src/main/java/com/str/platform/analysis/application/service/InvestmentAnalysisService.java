@@ -154,9 +154,8 @@ public class InvestmentAnalysisService {
         }
         
         int months = (int) Math.ceil(investmentAmount / monthlyNet);
-        
-        // Cap at 240 months (20 years) for display purposes
-        return Math.min(months, 240);
+
+        return months;
     }
     
     /**
