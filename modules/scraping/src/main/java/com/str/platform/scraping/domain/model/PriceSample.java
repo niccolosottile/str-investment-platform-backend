@@ -16,7 +16,7 @@ import java.time.LocalDate;
 public class PriceSample {
     
     /**
-     * The total price for the stay
+         * The nightly price shown in search results.
      */
     private final BigDecimal price;
     
@@ -46,7 +46,7 @@ public class PriceSample {
     private final Instant sampledAt;
     
     /**
-     * Calculates the average daily rate from this price sample.
+         * Search samples already store nightly price, so ADR is the sampled price itself.
      * 
      * @return ADR (price per night)
      */
@@ -54,6 +54,6 @@ public class PriceSample {
         if (numberOfNights <= 0) {
             return BigDecimal.ZERO;
         }
-        return price.divide(BigDecimal.valueOf(numberOfNights), 2, java.math.RoundingMode.HALF_UP);
+            return price;
     }
 }
