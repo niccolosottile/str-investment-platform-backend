@@ -5,7 +5,6 @@ import com.str.platform.scraping.domain.event.ScrapingJobCompletedEvent;
 import com.str.platform.scraping.domain.event.ScrapingJobFailedEvent;
 import com.str.platform.scraping.domain.model.PropertyAvailability;
 import com.str.platform.scraping.domain.model.PriceSample;
-import com.str.platform.scraping.domain.model.Property.PropertyType;
 import com.str.platform.scraping.domain.model.ScrapingJob;
 import com.str.platform.scraping.infrastructure.persistence.entity.PropertyAvailabilityEntity;
 import com.str.platform.scraping.infrastructure.persistence.entity.PropertyEntity;
@@ -264,11 +263,11 @@ public class ScrapingResultConsumer {
      */
     private String normalizePropertyType(String raw) {
         if (raw == null || raw.isBlank()) {
-            return PropertyType.ENTIRE_APARTMENT.name();
+            return com.str.platform.scraping.domain.model.Property.PropertyType.ENTIRE_APARTMENT.name();
         }
         // Already canonical (e.g. re-processing or future scrapers that emit enum names)
         try {
-            PropertyType.valueOf(
+            com.str.platform.scraping.domain.model.Property.PropertyType.valueOf(
                 raw.toUpperCase().replace(' ', '_').replace('-', '_'));
             return raw.toUpperCase().replace(' ', '_').replace('-', '_');
         } catch (IllegalArgumentException ignored) {
@@ -276,30 +275,30 @@ public class ScrapingResultConsumer {
         }
         String lower = raw.toLowerCase();
         if (lower.equals("private room") || lower.equals("room") || lower.equals("suite")) {
-            return PropertyType.PRIVATE_ROOM.name();
+            return com.str.platform.scraping.domain.model.Property.PropertyType.PRIVATE_ROOM.name();
         }
         if (lower.equals("shared room")) {
-            return PropertyType.SHARED_ROOM.name();
+            return com.str.platform.scraping.domain.model.Property.PropertyType.SHARED_ROOM.name();
         }
         if (lower.equals("townhouse") || lower.equals("house") || lower.equals("villa")
                 || lower.equals("cottage") || lower.equals("cabin") || lower.equals("chalet")
                 || lower.equals("bungalow") || lower.equals("farmhouse")) {
-            return PropertyType.ENTIRE_HOUSE.name();
+            return com.str.platform.scraping.domain.model.Property.PropertyType.ENTIRE_HOUSE.name();
         }
         // Substring fallback for unexpected compound values
         if (lower.contains("private room") || lower.contains("private_room")) {
-            return PropertyType.PRIVATE_ROOM.name();
+            return com.str.platform.scraping.domain.model.Property.PropertyType.PRIVATE_ROOM.name();
         }
         if (lower.contains("shared room") || lower.contains("shared_room")) {
-            return PropertyType.SHARED_ROOM.name();
+            return com.str.platform.scraping.domain.model.Property.PropertyType.SHARED_ROOM.name();
         }
         if (lower.contains("house") || lower.contains("villa") || lower.contains("cottage")
                 || lower.contains("cabin") || lower.contains("chalet") || lower.contains("townhouse")
                 || lower.contains("bungalow") || lower.contains("farmhouse")) {
-            return PropertyType.ENTIRE_HOUSE.name();
+            return com.str.platform.scraping.domain.model.Property.PropertyType.ENTIRE_HOUSE.name();
         }
         // Default: apartments, condos, flats, lofts, studios, and anything unrecognised
-        return PropertyType.ENTIRE_APARTMENT.name();
+        return com.str.platform.scraping.domain.model.Property.PropertyType.ENTIRE_APARTMENT.name();
     }
     
     /**
@@ -316,20 +315,16 @@ public class ScrapingResultConsumer {
         
         for (PropertyAvailability availability : availabilityList) {
             try {
-                String month = availability.getMonth().toString();
-                PropertyAvailabilityEntity entity = availabilityRepository
-                    .findFirstByPropertyIdAndMonth(propertyId, month)
-                    .orElseGet(() -> PropertyAvailabilityEntity.builder()
-                        .propertyId(propertyId)
-                        .month(month)
-                        .build());
-
-                entity.setTotalDays(availability.getTotalDays());
-                entity.setAvailableDays(availability.getAvailableDays());
-                entity.setBookedDays(availability.getBookedDays());
-                entity.setBlockedDays(availability.getBlockedDays());
-                entity.setEstimatedOccupancy(java.math.BigDecimal.valueOf(availability.getEstimatedOccupancy()));
-                entity.setScrapedAt(scrapedAt);
+                PropertyAvailabilityEntity entity = PropertyAvailabilityEntity.builder()
+                    .propertyId(propertyId)
+                    .month(availability.getMonth().toString()) // Format: YYYY-MM
+                    .totalDays(availability.getTotalDays())
+                    .availableDays(availability.getAvailableDays())
+                    .bookedDays(availability.getBookedDays())
+                    .blockedDays(availability.getBlockedDays())
+                    .estimatedOccupancy(java.math.BigDecimal.valueOf(availability.getEstimatedOccupancy()))
+                    .scrapedAt(scrapedAt)
+                    .build();
                 
                 availabilityRepository.save(entity);
                 savedCount++;
@@ -353,22 +348,15 @@ public class ScrapingResultConsumer {
      */
     private void savePriceSample(UUID propertyId, PriceSample priceSample) {
         try {
-            PriceSampleEntity entity = priceSampleRepository
-                .findByPropertyIdAndSearchDateStartAndSearchDateEnd(
-                    propertyId,
-                    priceSample.getSearchDateStart(),
-                    priceSample.getSearchDateEnd()
-                )
-                .orElseGet(() -> PriceSampleEntity.builder()
-                    .propertyId(propertyId)
-                    .searchDateStart(priceSample.getSearchDateStart())
-                    .searchDateEnd(priceSample.getSearchDateEnd())
-                    .build());
-
-            entity.setPrice(priceSample.getPrice());
-            entity.setCurrency(priceSample.getCurrency());
-            entity.setNumberOfNights(priceSample.getNumberOfNights());
-            entity.setSampledAt(priceSample.getSampledAt());
+            PriceSampleEntity entity = PriceSampleEntity.builder()
+                .propertyId(propertyId)
+                .price(priceSample.getPrice())
+                .currency(priceSample.getCurrency())
+                .searchDateStart(priceSample.getSearchDateStart())
+                .searchDateEnd(priceSample.getSearchDateEnd())
+                .numberOfNights(priceSample.getNumberOfNights())
+                .sampledAt(priceSample.getSampledAt())
+                .build();
             
             priceSampleRepository.save(entity);
             
